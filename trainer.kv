@@ -1,0 +1,148 @@
+#:kivy 1.0
+#:import utils kivy.utils
+
+<MyButton@Button>:
+    on_press:
+        app.root.button_clicked(self.text)
+
+<MyTreeViewLabel@TreeViewLabel>
+    on_touch_down:
+        app.root.tv_touch(self.uid)
+
+<LoadDialog>:
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: "vertical"
+        MyFileChooserListView:
+            id: filechooser
+            path: self.startpath
+        BoxLayout:
+            size_hint_y: None
+            height: 30
+            Button:
+                text: "Отмена"
+                on_release: root.cancel()
+            Button:
+                text: "Выбрать"
+                on_release: root.load_mytetra(filechooser.path, filechooser.selection)
+
+<MyGrid>
+    tag: tag
+    GridLayout:
+        cols:1
+        size: root.width, root.height
+        PageLayout:
+            BoxLayout:
+                orientation: 'vertical'
+                canvas:
+                    Color:
+                        rgba: (0.5, 0.5, 0.9, 1)
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+                Spinner:
+                    id: transcript_file
+                    height: dp(40)
+                    size_hint_y: None
+			        text: "Файл стенограммы"
+			        on_text: root.spinner_clicked(transcript_file.text)
+			        values: '1','2','3'
+                Label:
+			        id: file_id_time
+			        text: "Pick Favorite Pizza Below"
+        			height: dp(40)
+        			size_hint_y: None
+                TextInput:
+                    id: transcript_text
+                    text: ''
+                    multiline: True
+                    hint_text: '^ Выберите файл стенограммы ^'
+                    readonly: True
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: dp(40)
+                    Button:
+                        text: '+'
+                        height: dp(40)
+                    Button:
+                        text: '<'
+                        height: dp(40)
+                    Button:
+                        text: '>'
+                        height: dp(40)
+                    Button:
+                        text: '÷'
+                        height: dp(40)
+                TextInput:
+                    id: short_text
+                    text: ''
+                    multiline: True
+                    height: dp(120)
+                    size_hint_y: None
+                Label:
+			        id: tag_path
+			        text: "Тут\будет\путь\к\тэгу"
+        			height: dp(40)
+        			size_hint_y: None
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: dp(40)
+                    Button:
+                        text: 'X'
+                        height: dp(40)
+                    Button:
+                        text: '^'
+                        height: dp(40)
+            BoxLayout:
+                orientation: 'vertical'
+                canvas:
+                    Color:
+                        rgba: (0.5, 0.9, 0.5, 1)
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+                ScrollView:
+                    do_scroll: False, True
+                    bar_width: dp(10)
+                    scroll_type: ['bars','content']
+                    MyTreeView:
+                        id: tag
+                        size_hint_y: None
+                        root_options: {'text': ' '}
+                        hide_root: True
+                        height: self.minimum_height
+                RecycleView:
+                    size_hint_y: None
+                    height: dp(120)
+                    id: mention
+                    viewclass: 'MyButton'
+                    data: [{'text':'один'},{'text': 'два'},{'text': 'три'},{'text': 'пять'},{'text': 'десять'}]
+                    RecycleBoxLayout:
+                        default_size: None, dp(40)
+                        default_size_hint: 1, None
+                        size_hint_y: None
+                        height: self.minimum_height
+                        orientation: 'vertical'
+                Label:
+                    id: short_text_from_tag
+                    text: ''
+                    multiline: True
+                    height: dp(120)
+                    size_hint_y: None
+            BoxLayout:
+                orientation: 'vertical'
+                canvas:
+                    Color:
+                        rgba: (0.9, 0.5, 0.5, 1)
+                    Rectangle:
+                        pos: self.pos
+                        size: self.size
+                Button:
+                    id: path2mytetra
+                    text: 'Путь к файлу mytetra.xml'
+                    height: dp(40)
+                    on_release: root.show_load()
+
