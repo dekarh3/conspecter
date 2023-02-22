@@ -1,9 +1,9 @@
-#:kivy 1.0
+#:kivy 1.8.0
 #:import utils kivy.utils
 
 <MyButton@Button>:
     on_press:
-        app.root.button_clicked(self.text)
+        app.root.btn_conspect_click(self.text)
 
 <MyTreeViewLabel@TreeViewLabel>
     on_touch_down:
@@ -25,7 +25,7 @@
                 on_release: root.cancel()
             Button:
                 text: "Выбрать"
-                on_release: root.load_mytetra(filechooser.path, filechooser.selection)
+                on_release: root.loaddb(filechooser.path, filechooser.selection)
 
 <MyGrid>
     tag: tag
@@ -42,11 +42,11 @@
                         pos: self.pos
                         size: self.size
                 Spinner:
-                    id: transcript_file
+                    id: lecture
                     height: dp(40)
                     size_hint_y: None
 			        text: "Файл стенограммы"
-			        on_text: root.spinner_clicked(transcript_file.text)
+			        on_text: root.spn_lecture_click(lecture.text)
 			        values: '1','2','3'
                 Label:
 			        id: file_id_time
@@ -57,7 +57,7 @@
                     id: transcript_text
                     text: ''
                     multiline: True
-                    hint_text: '^ Выберите файл стенограммы ^'
+                    hint_text: '^ Выберите файл лекции ^'
                     readonly: True
                 BoxLayout:
                     orientation: 'horizontal'
@@ -104,6 +104,43 @@
                     Rectangle:
                         pos: self.pos
                         size: self.size
+                BoxLayout:
+                    orientation: 'horizontal'
+                    size_hint_y: None
+                    height: dp(40)
+                    Button:
+                        id: btn_tvedit_change
+                        text: 'Добавление'
+                        size_hint_y: None
+                        size_hint_x: None
+                        width: dp(130)
+                        height: dp(40)
+                        on_press: app.root.btn_tvedit_change_click()
+                    Button:
+                        id: btn_tvedit_minus
+                        text: ''
+                        font_size: dp(40)
+                        height: dp(40)
+                        width: dp(40)
+                        size_hint_y: None
+                        size_hint_x: None
+                        disabled: True
+                        on_press: app.root.btn_tvedit_minus_click()
+                    TextInput:
+                        id: tvedit_text
+                        text: ''
+                        multiline: False
+                        height: dp(40)
+                        size_hint_y: None
+                    Button:
+                        id: btn_tvedit_plus
+                        text: '+'
+                        font_size: dp(40)
+                        size_hint_y: None
+                        size_hint_x: None
+                        height: dp(40)
+                        width: dp(40)
+                        on_press: app.root.btn_tvedit_plus_click()
                 ScrollView:
                     do_scroll: False, True
                     bar_width: dp(10)
@@ -142,7 +179,7 @@
                         size: self.size
                 Button:
                     id: path2mytetra
-                    text: 'Путь к файлу mytetra.xml'
+                    text: 'Путь к файлу импорта'
                     height: dp(40)
-                    on_release: root.show_load()
+                    on_release: root.show_loaddb_dialog()
 
