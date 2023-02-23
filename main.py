@@ -70,10 +70,6 @@ class MyTreeView(TreeView):
         #self.main_tree = xmltodict.parse(main_file)
         self.depopulate_tree_view()
         self.populate_tree_view(None) #, self.main_tree['root']['content'])
-    def has_child(self, node_id):
-        cur.execute('SELECT id, name FROM tags WHERE parent = ?;', (node_id,))
-        request = cur.fetchall()
-        return len(request) > 0
     def delete_node(self, node_id):
         cur.execute('DELETE FROM tags WHERE id = ?;', (node_id,))
         conn.commit()
@@ -117,7 +113,7 @@ class MyGrid(Widget):
             self.ids.btn_tvedit_change.text = self.tvedit_regim
             self.ids.btn_tvedit_minus.disabled = True
             self.ids.btn_tvedit_minus.text = ''
-            self.ids.btn_tvedit_plus.disabled = self.tag.has_child(self.tvedit_current_id)
+            self.ids.btn_tvedit_plus.disabled = not self.tag.nodes[self.tvedit_current_id].is_leaf
             self.ids.btn_tvedit_plus.text = '-'
             self.ids.tvedit_text.text = self.tag.nodes[self.tvedit_current_id].text
             self.ids.tvedit_text.readonly = True
@@ -151,6 +147,7 @@ class MyGrid(Widget):
                 self.ids.btn_tvedit_plus.disabled = True
                 self.ids.btn_tvedit_minus.text = 'ok'
                 self.ids.btn_tvedit_minus.disabled = False
+                self.tvedit_captured_id = -1
     def btn_tvedit_plus_click(self):
         pass
     def tv_touch(self, value):
@@ -159,12 +156,12 @@ class MyGrid(Widget):
             self.ids.tvedit_text.text = self.tag.nodes[self.tvedit_current_id].text
         elif self.tvedit_regim == 'Перенос':
             if self.tvedit_current_id != self.tvedit_captured_id and self.tvedit_captured_id > -1 \
-                    and self.tvedit_captured_id in self.tag.child_list(self.tvedit_current_id):
+                    and self.tvedit_current_id not in self.tag.child_list(self.tvedit_captured_id):
                 self.ids.btn_tvedit_plus.disabled = False
             else:
                 self.ids.btn_tvedit_plus.disabled = True
         if self.tvedit_regim == 'Удаление':
-            self.ids.btn_tvedit_plus.disabled = self.tag.has_child(self.tvedit_current_id)
+            self.ids.btn_tvedit_plus.disabled = not self.tag.nodes[self.tvedit_current_id].is_leaf
     def spn_lecture_click(self, value):
         self.ids.file_id_time.text = value
         self.ids.transcript_text.text = f'You Selected: {value}'
