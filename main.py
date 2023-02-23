@@ -97,6 +97,14 @@ class MyGrid(Widget):
         self.tvedit_regim = 'Добавление'
         self.tvedit_current_id = 0
         self.tvedit_captured_id = -1
+        self.ids.btn_tvedit_change.text = self.tvedit_regim
+        self.ids.btn_tvedit_minus.disabled = True
+        self.ids.btn_tvedit_minus.text = ''
+        self.ids.btn_tvedit_plus.disabled = True
+        self.ids.btn_tvedit_plus.text = '+'
+        self.ids.tvedit_text.text = ''
+        self.ids.tvedit_text.readonly = False
+
     def btn_tvedit_change_click(self):
         '''Переключение режимов редактирования дерева'''
         if self.tvedit_regim == 'Добавление':
@@ -162,6 +170,17 @@ class MyGrid(Widget):
                 self.ids.btn_tvedit_plus.disabled = True
         if self.tvedit_regim == 'Удаление':
             self.ids.btn_tvedit_plus.disabled = not self.tag.nodes[self.tvedit_current_id].is_leaf
+    def tvedit_text_click(self):
+        if self.tvedit_regim == 'Добавление':
+            if self.ids.tvedit_text.text:
+                self.ids.btn_tvedit_plus.disabled = False
+            else:
+                self.ids.btn_tvedit_plus.disabled = True
+        elif self.tvedit_regim == 'Редактирование':
+            if self.ids.tvedit_text.text != self.tag.nodes[self.tvedit_current_id].text:
+                self.ids.btn_tvedit_plus.disabled = False
+            else:
+                self.ids.btn_tvedit_plus.disabled = True
     def spn_lecture_click(self, value):
         self.ids.file_id_time.text = value
         self.ids.transcript_text.text = f'You Selected: {value}'

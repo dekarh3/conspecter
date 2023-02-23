@@ -115,7 +115,7 @@
                         size_hint_x: None
                         width: dp(130)
                         height: dp(40)
-                        on_press: app.root.btn_tvedit_change_click()
+                        on_release: app.root.btn_tvedit_change_click()
                     Button:
                         id: btn_tvedit_minus
                         text: ''
@@ -125,13 +125,14 @@
                         size_hint_y: None
                         size_hint_x: None
                         disabled: True
-                        on_press: app.root.btn_tvedit_minus_click()
+                        on_release: app.root.btn_tvedit_minus_click()
                     TextInput:
                         id: tvedit_text
                         text: ''
                         multiline: False
                         height: dp(40)
                         size_hint_y: None
+                        on_text: app.root.tvedit_text_click()
                     Button:
                         id: btn_tvedit_plus
                         text: '+'
@@ -140,7 +141,7 @@
                         size_hint_x: None
                         height: dp(40)
                         width: dp(40)
-                        on_press: app.root.btn_tvedit_plus_click()
+                        on_release: app.root.btn_tvedit_plus_click()
                 ScrollView:
                     do_scroll: False, True
                     bar_width: dp(10)
