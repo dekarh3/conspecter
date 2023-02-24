@@ -157,7 +157,28 @@ class MyGrid(Widget):
                 self.ids.btn_tvedit_minus.disabled = False
                 self.tvedit_captured_id = -1
     def btn_tvedit_plus_click(self):
-        pass
+        if self.tvedit_regim == 'Добавление':
+            cur.execute('SELECT max(id) FROM tags')
+            request = cur.fetchone()
+            cur.execute('INSERT INTO tags VALUES(?, ?, ?, ?);', (
+                request[0] + 1, self.tvedit_current_id, self.ids.tvedit_text.text, my_user_id))
+            conn.commit()
+            tree_node = self.tag.add_node(MyTreeViewLabel(
+                text=self.ids.tvedit_text.text, is_open=True,external_id=request[0] + 1),
+                self.tag.nodes[self.tvedit_current_id])
+            self.tag.uid2id[tree_node.uid] = request[0] + 1
+            self.tag.nodes[request[0] + 1] = tree_node
+            self.ids.tvedit_text.text = ''
+        elif self.tvedit_regim == 'Редактирование':
+            cur.execute("UPDATE tags SET name=?, user_id=? WHERE id=?", (self.ids.tvedit_text.text, my_user_id,
+                                                                         self.tvedit_current_id))
+            conn.commit()
+            self.tag.nodes[self.tvedit_current_id].text = self.ids.tvedit_text.text
+        elif self.tvedit_regim == 'Удаление':
+            pass
+        else:                     # Перенос
+            pass
+
     def tv_touch(self, value):
         self.tvedit_current_id = self.tag.uid2id[value]
         if self.tvedit_regim == 'Редактирование' or self.tvedit_regim == 'Удаление':
@@ -295,5 +316,7 @@ if __name__ == "__main__":
             conn = sqlite3.connect(os.path.join(APP_PATH, 'main.db'))
             cur = conn.cursor()
     Factory.register('LoadDialog', cls=LoadDialog)
+    my_user_id = 'q1q1'
+    my_user_name = 'Денис Алексеев'
     TrainerApp().run()
 
