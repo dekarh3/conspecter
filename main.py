@@ -82,6 +82,16 @@ class MyTreeView(TreeView):
             node_ids.append(self.uid2id[node.uid])
         return node_ids
 
+    def parent_list(self, node_id):
+        node_names = []
+        while self.nodes[node_id].parent_node:
+            node_names.append(self.nodes[node_id].text)
+            if str(type(self.nodes[node_id].parent_node)).replace("'",'') == '<class __main__.MyTreeViewLabel>':
+                node_id = self.uid2id[self.nodes[node_id].parent_node.uid]
+            else:
+                break
+        node_names.reverse()
+        return node_names
 
 class MyBoxLayout(BoxLayout):
     background_color = ColorProperty() # The ListProperty will also work.
@@ -209,6 +219,7 @@ class MyGrid(Widget):
                 self.ids.btn_tvedit_plus.disabled = True
         if self.tvedit_regim == 'Удаление':
             self.ids.btn_tvedit_plus.disabled = not self.tag.nodes[self.tvedit_current_id].is_leaf
+        self.ids.tag_path.text = '\\'.join(self.tag.parent_list(self.tvedit_current_id))
 
     def tvedit_text_click(self):
         if self.tvedit_regim == 'Добавление':
