@@ -29,24 +29,24 @@ CREATE_DB = False
 class MyFileChooserListView(FileChooserListView):
     startpath = DIR
 
+
 class MyTreeViewLabel(TreeViewLabel):
     external_id = NumericProperty(0)
+
 
 class MyTreeView(TreeView):
     def __init__(self, **kwargs):
         super(MyTreeView, self).__init__(**kwargs)
-        #self.main_dir_path = DIR
-        #with open(os.path.join(self.main_dir_path, 'mytetra.xml'), 'r') as read_file:
-        #    main_file = read_file.read()        
-        #self.main_tree = xmltodict.parse(main_file)
         self.uid2id = {}
+        self.id2uid = {}
         self.nodes = {}
-        self.populate_tree_view(None, 0)#, self.main_tree['root']['content'])
+        self.populate_tree_view(None, 0)
 
     def populate_tree_view(self, parent, node_id):
         if parent is None:
             tree_node = self.add_node(MyTreeViewLabel(text='', is_open=True, external_id=0))
             self.uid2id[tree_node.uid] = 0
+            self.id2uid[0] = tree_node.uid
             self.nodes[0] = tree_node
         else:
             cur.execute('SELECT id, name FROM tags WHERE id = ?;', (node_id,))
@@ -54,31 +54,34 @@ class MyTreeView(TreeView):
             tree_node = self.add_node(MyTreeViewLabel(text=request[1], is_open=True,
                                                            external_id=request[0]), parent)
             self.uid2id[tree_node.uid] = request[0]
+            self.id2uid[request[0]] = tree_node.uid
             self.nodes[request[0]] = tree_node
         cur.execute('SELECT id, name FROM tags WHERE parent = ?;', (node_id,))
         request = cur.fetchall()
         for child_node in request:
             self.populate_tree_view(tree_node, child_node[0])
+
     def depopulate_tree_view(self):
         for node in self.nodes:
             self.remove_node(self.nodes[node])
         self.nodes = {}
         self.node_ids = {}
-    def reload_tree(self, main_dir_path):
-        #with open(os.path.join(main_dir_path, 'mytetra.xml'), 'r') as read_file:
-        #    main_file = read_file.read()
-        #self.main_tree = xmltodict.parse(main_file)
+
+    def reload_tree(self):
         self.depopulate_tree_view()
-        self.populate_tree_view(None) #, self.main_tree['root']['content'])
+        self.populate_tree_view(None, 0)
+
     def delete_node(self, node_id):
         cur.execute('DELETE FROM tags WHERE id = ?;', (node_id,))
         conn.commit()
         self.reload_tree()
+
     def child_list(self, node_id):
         node_ids = []
         for node in self.iterate_all_nodes(self.nodes[node_id]):
             node_ids.append(self.uid2id[node.uid])
         return node_ids
+
 
 class MyBoxLayout(BoxLayout):
     background_color = ColorProperty() # The ListProperty will also work.
@@ -92,6 +95,7 @@ class LoadDialog(FloatLayout):
 class MyGrid(Widget):
     tag = ObjectProperty(None)
     mention = ObjectProperty(None)
+
     def __init__(self, **kwargs):
         super(MyGrid, self).__init__(**kwargs)
         self.tvedit_regim = 'Добавление'
@@ -167,6 +171,7 @@ class MyGrid(Widget):
                 text=self.ids.tvedit_text.text, is_open=True,external_id=request[0] + 1),
                 self.tag.nodes[self.tvedit_current_id])
             self.tag.uid2id[tree_node.uid] = request[0] + 1
+            self.tag.id2uid[request[0] + 1] = tree_node.uid
             self.tag.nodes[request[0] + 1] = tree_node
             self.ids.tvedit_text.text = ''
         elif self.tvedit_regim == 'Редактирование':
@@ -175,9 +180,22 @@ class MyGrid(Widget):
             conn.commit()
             self.tag.nodes[self.tvedit_current_id].text = self.ids.tvedit_text.text
         elif self.tvedit_regim == 'Удаление':
-            pass
+            cur.execute("DELETE FROM tags WHERE id=?", (self.tvedit_current_id,))
+            conn.commit()
+            self.tag.remove_node(self.tag.nodes[self.tvedit_current_id])
+            self.tag.nodes.pop(self.tvedit_current_id)
+            self.tag.uid2id.pop(self.tag.id2uid[self.tvedit_current_id])
+            self.tag.id2uid.pop(self.tvedit_current_id)
+            self.ids.tvedit_text.text = ''
         else:                     # Перенос
-            pass
+            cur.execute("UPDATE tags SET parent=?, user_id=? WHERE id=?", (self.tvedit_current_id, my_user_id,
+                                                                         self.tvedit_captured_id))
+            conn.commit()
+            self.tag.reload_tree()
+            self.ids.tvedit_text.text = ''
+            self.ids.btn_tvedit_plus.disabled = True
+            self.ids.btn_tvedit_minus.text = 'ok'
+            self.tvedit_captured_id = -1
 
     def tv_touch(self, value):
         self.tvedit_current_id = self.tag.uid2id[value]
@@ -191,6 +209,7 @@ class MyGrid(Widget):
                 self.ids.btn_tvedit_plus.disabled = True
         if self.tvedit_regim == 'Удаление':
             self.ids.btn_tvedit_plus.disabled = not self.tag.nodes[self.tvedit_current_id].is_leaf
+
     def tvedit_text_click(self):
         if self.tvedit_regim == 'Добавление':
             if self.ids.tvedit_text.text:
@@ -202,19 +221,24 @@ class MyGrid(Widget):
                 self.ids.btn_tvedit_plus.disabled = False
             else:
                 self.ids.btn_tvedit_plus.disabled = True
+
     def spn_lecture_click(self, value):
         self.ids.file_id_time.text = value
         self.ids.transcript_text.text = f'You Selected: {value}'
+
     def btn_conspect_click(self, value):
         self.ids.file_id_time.text = value
         self.ids.transcript_text.text = f'You Selected: {value}'
+
     def cancel_dialog(self):
         self._popup.dismiss()
+
     def show_loaddb_dialog(self):
         content = LoadDialog(loaddb=self.loaddb, cancel=self.cancel_dialog)
         self._popup = Popup(title="Выбрать mytetra.xml", content=content,
                             size_hint=(0.9, 0.9))
         self._popup.open()
+
     def loaddb(self, path, filename):
         ''' Актуализировать импорт из db'''
         if os.path.basename(os.path.join(path, filename[0])) == 'mytetra.xml':
