@@ -2,8 +2,9 @@ import kivy
 kivy.require('1.9.1')
 
 import os
-import xmltodict
 import sqlite3
+#from youtube_transcript_api import YouTubeTranscriptApi
+#srt = YouTubeTranscriptApi.get_transcript("ZTh0L3UxSCc", languages=['ru'])
 from kivy.app import App
 from kivy.factory import Factory
 from kivy.uix.widget import Widget
@@ -18,10 +19,10 @@ if platform == 'android':
     from android.permissions import request_permissions, Permission
     from android.storage import primary_external_storage_path
     request_permissions([Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE]) # Даём разрешение на чтение и запись (в моём случае)
-    DIR = os.path.join(primary_external_storage_path(), 'mytetra')
+    DIR = os.path.join(primary_external_storage_path())
     APP_PATH = os.path.dirname(os.path.abspath(__file__))
 else:
-    DIR = ''
+    DIR = '.'
     APP_PATH = ''
 CREATE_DB = False
 
@@ -101,6 +102,16 @@ class LoadDialog(FloatLayout):
     loaddb = ObjectProperty(None)
     cancel = ObjectProperty(None)
 
+class LoadYoutubeDialog(FloatLayout):
+    loadyotube = ObjectProperty(None)
+    cancel = ObjectProperty(None)
+    def checkbox_click(self, instance, value, lecture_type):
+        if lecture_type == 'youtube':
+            self.ids.filechooser.disabled = True
+            self.ids.video_id.disabled = False
+        else:
+            self.ids.filechooser.disabled = False
+            self.ids.video_id.disabled = True
 
 class MyGrid(Widget):
     tag = ObjectProperty(None)
@@ -244,6 +255,20 @@ class MyGrid(Widget):
     def cancel_dialog(self):
         self._popup.dismiss()
 
+    def show_load_youtube_dialog(self):
+        content = LoadYoutubeDialog(loadyotube=self.loadyotube, cancel=self.cancel_dialog)
+        self._popup = Popup(title="Выбрать mytetra.xml", content=content,
+                            size_hint=(0.9, 0.9))
+        self._popup.open()
+
+    def loadyotube(self, path, filename):
+        ''' Актуализировать импорт из db'''
+        if os.path.basename(os.path.join(path, filename[0])) == 'mytetra.xml':
+            main_dir_path = os.path.dirname(os.path.join(path, filename[0]))
+            #self.tag.reload_tree(main_dir_path)
+            q=0
+        self.cancel_dialog()
+
     def show_loaddb_dialog(self):
         content = LoadDialog(loaddb=self.loaddb, cancel=self.cancel_dialog)
         self._popup = Popup(title="Выбрать mytetra.xml", content=content,
@@ -257,7 +282,6 @@ class MyGrid(Widget):
             #self.tag.reload_tree(main_dir_path)
             q=0
         self.cancel_dialog()
-
 
 class TrainerApp(App): # <- Main Class
     def build(self):
