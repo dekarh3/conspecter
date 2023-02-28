@@ -3,7 +3,7 @@ kivy.require('1.9.1')
 
 import os
 import sqlite3
-from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled
 from kivy.app import App
 from kivy.factory import Factory
 from kivy.uix.widget import Widget
@@ -120,7 +120,12 @@ class LoadYoutubeDialog(FloatLayout):
 
     def ok_click(self, youtube_id, path, selection):
         if self.lecture_type == 'youtube':
-            self.loadyotube(self.lecture_type, youtube_id, path, selection)
+            try:
+                srt = YouTubeTranscriptApi.get_transcript(self.ids.video_id.text, languages=['ru'])
+                self.loadyotube(self.lecture_type, youtube_id, path, selection)
+            except TranscriptsDisabled:
+                self.ids.video_id.text = ''
+                return
         else:
             return
 
