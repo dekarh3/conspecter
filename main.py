@@ -3,8 +3,7 @@ kivy.require('1.9.1')
 
 import os
 import sqlite3
-#from youtube_transcript_api import YouTubeTranscriptApi
-#srt = YouTubeTranscriptApi.get_transcript("ZTh0L3UxSCc", languages=['ru'])
+from youtube_transcript_api import YouTubeTranscriptApi
 from kivy.app import App
 from kivy.factory import Factory
 from kivy.uix.widget import Widget
@@ -94,6 +93,7 @@ class MyTreeView(TreeView):
         node_names.reverse()
         return node_names
 
+
 class MyBoxLayout(BoxLayout):
     background_color = ColorProperty() # The ListProperty will also work.
 
@@ -105,13 +105,24 @@ class LoadDialog(FloatLayout):
 class LoadYoutubeDialog(FloatLayout):
     loadyotube = ObjectProperty(None)
     cancel = ObjectProperty(None)
+    def __init__(self, **kwargs):
+        super(LoadYoutubeDialog, self).__init__(**kwargs)
+        self.lecture_type = 'youtube'
+
     def checkbox_click(self, instance, value, lecture_type):
+        self.lecture_type = lecture_type
         if lecture_type == 'youtube':
             self.ids.filechooser.disabled = True
             self.ids.video_id.disabled = False
         else:
             self.ids.filechooser.disabled = False
             self.ids.video_id.disabled = True
+
+    def ok_click(self, youtube_id, path, selection):
+        if self.lecture_type == 'youtube':
+            self.loadyotube(self.lecture_type, youtube_id, path, selection)
+        else:
+            return
 
 class MyGrid(Widget):
     tag = ObjectProperty(None)
@@ -129,6 +140,34 @@ class MyGrid(Widget):
         self.ids.btn_tvedit_plus.text = '+'
         self.ids.tvedit_text.text = ''
         self.ids.tvedit_text.readonly = False
+
+    def cancel_dialog(self):
+        self._popup.dismiss()
+
+    def show_load_youtube_dialog(self):
+        content = LoadYoutubeDialog(loadyotube=self.loadyotube, cancel=self.cancel_dialog)
+        self._popup = Popup(title="Выбрать mytetra.xml", content=content,
+                            size_hint=(0.9, 0.9))
+        self._popup.open()
+
+    def loadyotube(self, lecture_type, youtube_id, path, filename):
+        """ Загрузка субтитров с youtube или pdf файла целиком"""
+        q=0
+        self.cancel_dialog()
+
+    def show_loaddb_dialog(self):
+        content = LoadDialog(loaddb=self.loaddb, cancel=self.cancel_dialog)
+        self._popup = Popup(title="Выбрать mytetra.xml", content=content,
+                            size_hint=(0.9, 0.9))
+        self._popup.open()
+
+    def loaddb(self, path, filename):
+        ''' Актуализировать импорт из db'''
+        if os.path.basename(os.path.join(path, filename[0])) == 'mytetra.xml':
+            main_dir_path = os.path.dirname(os.path.join(path, filename[0]))
+            #self.tag.reload_tree(main_dir_path)
+            q=0
+        self.cancel_dialog()
 
     def btn_tvedit_change_click(self):
         '''Переключение режимов редактирования дерева'''
@@ -252,36 +291,6 @@ class MyGrid(Widget):
         self.ids.file_id_time.text = value
         self.ids.transcript_text.text = f'You Selected: {value}'
 
-    def cancel_dialog(self):
-        self._popup.dismiss()
-
-    def show_load_youtube_dialog(self):
-        content = LoadYoutubeDialog(loadyotube=self.loadyotube, cancel=self.cancel_dialog)
-        self._popup = Popup(title="Выбрать mytetra.xml", content=content,
-                            size_hint=(0.9, 0.9))
-        self._popup.open()
-
-    def loadyotube(self, path, filename):
-        ''' Актуализировать импорт из db'''
-        if os.path.basename(os.path.join(path, filename[0])) == 'mytetra.xml':
-            main_dir_path = os.path.dirname(os.path.join(path, filename[0]))
-            #self.tag.reload_tree(main_dir_path)
-            q=0
-        self.cancel_dialog()
-
-    def show_loaddb_dialog(self):
-        content = LoadDialog(loaddb=self.loaddb, cancel=self.cancel_dialog)
-        self._popup = Popup(title="Выбрать mytetra.xml", content=content,
-                            size_hint=(0.9, 0.9))
-        self._popup.open()
-
-    def loaddb(self, path, filename):
-        ''' Актуализировать импорт из db'''
-        if os.path.basename(os.path.join(path, filename[0])) == 'mytetra.xml':
-            main_dir_path = os.path.dirname(os.path.join(path, filename[0]))
-            #self.tag.reload_tree(main_dir_path)
-            q=0
-        self.cancel_dialog()
 
 class TrainerApp(App): # <- Main Class
     def build(self):

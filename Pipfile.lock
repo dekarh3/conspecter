@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "17f05243cee2594af3f1179bf8164471d8a25f80bace9ba8a8d01132f0f8a23f"
+            "sha256": "3466e9425bee4cdad54f72762f3231b4b08919423d2197258666524a59ba5028"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -318,11 +318,11 @@
         },
         "python-for-android": {
             "hashes": [
-                "sha256:09be89a170ddc225e86c3914dd33b1799ec1bbf8eb188b5c870f8f5e587efdf4",
-                "sha256:2042d1aaa794d9b1ac8ec99f04d9bedd82ffd7ecddfcd0fada719e8cdd0d23b8"
+                "sha256:49d4611176ebc95dd7ed1c010a5512ea82c5729dbe2739256188b8db668de8dc",
+                "sha256:75058be07121b5f10e44ce17bfd31d94ff4f160d922ec02a368a480dd6919bfa"
             ],
             "index": "pypi",
-            "version": "==2023.1.28"
+            "version": "==2023.2.10"
         },
         "requests": {
             "hashes": [
@@ -370,6 +370,14 @@
             ],
             "index": "pypi",
             "version": "==0.13.0"
+        },
+        "youtube-transcript-api": {
+            "hashes": [
+                "sha256:7498ceba7947255a5a1197c2a046d60a2d8c0cd26d6c8c56e095c54858436cde",
+                "sha256:e9ecbb663a0cabbe57424971298d52f764b607fab7318dd51ac545004b6fd06c"
+            ],
+            "index": "pypi",
+            "version": "==0.5.0"
         }
     },
     "develop": {}

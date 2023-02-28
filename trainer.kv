@@ -68,7 +68,8 @@
                 on_release: root.cancel()
             Button:
                 text: "Выбрать"
-                on_release: root.loadyotube(filechooser.path, filechooser.selection)
+                on_release: root.ok_click(video_id.text, filechooser.path, filechooser.selection)
+                #on_release: root.loadyotube(filechooser.path, filechooser.selection)
 <MyGrid>
     tag: tag
     GridLayout:
