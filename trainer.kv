@@ -36,26 +36,59 @@
 			cols:4
             size_hint_y: None
             height: 30
-			Label:
-				text: "Youtube видео"
 			CheckBox:
 				group: "lecture_type"
+				width: dp(40)
+                size_hint_x: None
 				active: True
 				on_active: root.checkbox_click(self, self.active, "youtube")
 			Label:
-				text: "Файл pdf"
+				text: "Youtube видео"
+                halign: "left"
+                valign: "middle"
+                text_size: self.size
 			CheckBox:
 				group: "lecture_type"
+				width: dp(40)
+                size_hint_x: None
 				on_active: root.checkbox_click(self, self.active, "pdf")
+			Label:
+				text: "Файл pdf"
+                halign: "left"
+                valign: "middle"
+				text_size: self.size
 		BoxLayout:
             size_hint_y: None
-            height: 30
+            height: dp(30)
             Label:
-                text: 'video_id'
+                text: 'Youtube id'
+                size_hint_x: None
+                width: dp(130)
             TextInput:
                 id: video_id
                 text: ''
                 multiline: False
+            Label:
+                id: video_id_check
+                text: ''
+                size_hint_x: None
+                width: dp(30)
+		BoxLayout:
+            size_hint_y: None
+            height: dp(30)
+            Label:
+                text: 'Название лекции'
+                size_hint_x: None
+                width: dp(130)
+            TextInput:
+                id: video_name
+                text: ''
+                multiline: False
+            Label:
+                id: video_name_check
+                text: ''
+                size_hint_x: None
+                width: dp(30)
         MyFileChooserListView:
             id: filechooser
             path: self.startpath
@@ -68,7 +101,7 @@
                 on_release: root.cancel()
             Button:
                 text: "Выбрать"
-                on_release: root.ok_click(video_id.text, filechooser.path, filechooser.selection)
+                on_release: root.ok_click(video_id.text, video_name.text, filechooser.path, filechooser.selection)
                 #on_release: root.loadyotube(filechooser.path, filechooser.selection)
 <MyGrid>
     tag: tag
@@ -102,18 +135,26 @@
                         size_hint_y: None
                         text: "Файл стенограммы"
                         on_text: root.spn_lecture_click(lecture.text)
-                        values: '1','2','3'
                 Label:
 			        id: file_id_time
 			        text: "Pick Favorite Pizza Below"
         			height: dp(40)
         			size_hint_y: None
-                TextInput:
-                    id: transcript_text
-                    text: ''
-                    multiline: True
-                    hint_text: '^ Выберите файл лекции ^'
-                    readonly: True
+                ScrollView:
+                    id: scroller
+                    do_scroll: False, True
+                    bar_width: dp(10)
+                    scroll_type: ['bars','content']
+                    TextInput:
+                        id: transcript_text
+                        size_hint: (None, None)
+                        height: max(self.minimum_height, scroller.height)
+                        width: scroller.width
+                        text: ''
+                        multiline: True
+                        hint_text: '^ Выберите файл лекции ^'
+                        readonly: True
+                        #on_text: root.transcript_text_changed()
                 BoxLayout:
                     orientation: 'horizontal'
                     size_hint_y: None

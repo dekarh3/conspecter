@@ -3,6 +3,7 @@ kivy.require('1.9.1')
 
 import os
 import sqlite3
+from datetime import datetime
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled
 from kivy.app import App
 from kivy.factory import Factory
@@ -114,18 +115,30 @@ class LoadYoutubeDialog(FloatLayout):
         if lecture_type == 'youtube':
             self.ids.filechooser.disabled = True
             self.ids.video_id.disabled = False
+            self.ids.video_name.disabled = False
         else:
             self.ids.filechooser.disabled = False
             self.ids.video_id.disabled = True
+            self.ids.video_name.disabled = True
 
-    def ok_click(self, youtube_id, path, selection):
-        if self.lecture_type == 'youtube':
-            try:
-                srt = YouTubeTranscriptApi.get_transcript(self.ids.video_id.text, languages=['ru'])
-                self.loadyotube(self.lecture_type, youtube_id, path, selection)
-            except TranscriptsDisabled:
+    def ok_click(self, youtube_id, lecture_name, path, selection):
+        if self.lecture_type == 'youtube' and len(youtube_id) > 9 and lecture_name:
+            cur.execute('SELECT id FROM audios WHERE id = ?;', (youtube_id,))
+            request = cur.fetchall()
+            if len(request) < 1:
+                cur.execute('SELECT name FROM audios WHERE name = ?;', (lecture_name,))
+                request = cur.fetchall()
+                if len(request) < 1:
+                    try:
+                        subtitles = YouTubeTranscriptApi.get_transcript(self.ids.video_id.text, languages=['ru'])
+                        self.loadyotube(self.lecture_type, youtube_id, lecture_name, subtitles, path, selection)
+                    except TranscriptsDisabled:
+                        self.ids.video_id.text = ''
+                        return
+                else:
+                    self.ids.video_name.text = ''
+            else:
                 self.ids.video_id.text = ''
-                return
         else:
             return
 
@@ -145,6 +158,10 @@ class MyGrid(Widget):
         self.ids.btn_tvedit_plus.text = '+'
         self.ids.tvedit_text.text = ''
         self.ids.tvedit_text.readonly = False
+        cur.execute('SELECT id, name FROM audios;')
+        self.yotube_id2name = {x[0]: x[1] for x in cur.fetchall()}
+        self.name2yotube_id = {self.yotube_id2name[x]: x for x in self.yotube_id2name}
+        self.ids.lecture.values = self.name2yotube_id.keys()
 
     def cancel_dialog(self):
         self._popup.dismiss()
@@ -155,9 +172,23 @@ class MyGrid(Widget):
                             size_hint=(0.9, 0.9))
         self._popup.open()
 
-    def loadyotube(self, lecture_type, youtube_id, path, filename):
+    def loadyotube(self, lecture_type, youtube_id, lecture_name, subtitles, path, filename):
         """ Загрузка субтитров с youtube или pdf файла целиком"""
-        q=0
+        transcr = ''
+        timestamps = []
+        cur.execute('INSERT INTO audios VALUES(?, ?, ?, ?, ?, ?, ?);',
+                    (youtube_id, lecture_name, '',datetime.now(), 0, '',my_user_id))
+        cr = 0
+        for subtitle in subtitles:
+            timestamps.append((len(transcr), youtube_id, subtitle['start'], my_user_id))
+            transcr += subtitle['text'] + ' '
+        cur.executemany('INSERT INTO timestamps VALUES(?, ?, ?, ?);', timestamps)
+        cur.execute('UPDATE audios SET transcription=? WHERE id=?;', (transcr, youtube_id))
+        conn.commit()
+        cur.execute('SELECT id, name FROM audios;')
+        self.yotube_id2name = {x[0]: x[1] for x in cur.fetchall()}
+        self.name2yotube_id = {self.yotube_id2name[x]: x for x in self.yotube_id2name}
+        self.ids.lecture.values = self.name2yotube_id.keys()
         self.cancel_dialog()
 
     def show_loaddb_dialog(self):
@@ -289,12 +320,26 @@ class MyGrid(Widget):
                 self.ids.btn_tvedit_plus.disabled = True
 
     def spn_lecture_click(self, value):
-        self.ids.file_id_time.text = value
-        self.ids.transcript_text.text = f'You Selected: {value}'
+        cur.execute('SELECT transcription FROM audios WHERE id = ?;', (self.name2yotube_id[value],))
+        lecture = cur.fetchone()
+        cur.execute('SELECT symbol_number FROM enterstamps WHERE audio_id = ? ORDER BY symbol_number;',
+                    (self.name2yotube_id[value],))
+        enterstamps = cur.fetchall()
+        text = lecture[0]
+        for i, enterstamp in enumerate(enterstamps):
+            text = text[:enterstamp - i] + '\n' + text[enterstamp - i:]
+        self.ids.transcript_text.text = text
 
     def btn_conspect_click(self, value):
         self.ids.file_id_time.text = value
         self.ids.transcript_text.text = f'You Selected: {value}'
+
+    def transcript_text_changed(self, *args):
+        """ Пока не используем. Посмотрим будут ди глюки со скролбаром """
+        width_calc = self.grid.ids.scroller.width
+        for line_label in self.grid.ids.ti._lines_labels:
+            width_calc = max(width_calc, line_label.width + 20)   # add 20 to avoid automatically creating a new line
+        self.ids.transcript_text.width = width_calc
 
 
 class TrainerApp(App): # <- Main Class
@@ -334,15 +379,21 @@ if __name__ == "__main__":
                 FOREIGN KEY (user_id) REFERENCES users(id));""")
         conn.commit()
         cur.execute("""
+            CREATE TABLE IF NOT EXISTS enterstamps(
+                symbol_number INT,                
+                audio_id TEXT,
+                CONSTRAINT id PRIMARY KEY (symbol_number, audio_id),
+                FOREIGN KEY (audio_id) REFERENCES audios(id));""")
+        conn.commit()
+        cur.execute("""CREATE UNIQUE INDEX IF NOT EXISTS idx_symbol_number ON enterstamps (symbol_number);""")
+        conn.commit()
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS timestamps(
-                second INT,
-                name TEXT NOT NULL,
-                author TEXT,
-                created DATETIME,
-                duration INT,
+                symbol_number INT,                
+                audio_id TEXT,
+                second REAL,
                 user_id TEXT,
-                audio_id INT,
-                CONSTRAINT id PRIMARY KEY (second, audio_id),
+                CONSTRAINT id PRIMARY KEY (symbol_number, audio_id),
                 FOREIGN KEY (audio_id) REFERENCES audios(id),
                 FOREIGN KEY (user_id) REFERENCES users(id));""")
         conn.commit()
@@ -359,16 +410,17 @@ if __name__ == "__main__":
         conn.commit()
         cur.execute("""
             CREATE TABLE IF NOT EXISTS conspects(
-                id INT PRIMARY KEY,                    
+                symbol_number INT,                    
+                audio_id TEXT,
                 hash TEXT,
                 content TEXT NOT NULL,                    
                 edited DATETIME,
                 second REAL,
                 page INT,
                 tag_id INT,
-                audio_id TEXT,
                 pdf_id TEXT,
                 user_id TEXT,
+                CONSTRAINT id PRIMARY KEY (symbol_number, audio_id, tag_id),
                 FOREIGN KEY (tag_id) REFERENCES tag(id),
                 FOREIGN KEY (audio_id) REFERENCES audios(id),
                 FOREIGN KEY (pdf_id) REFERENCES pdfs(id),
