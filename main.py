@@ -162,6 +162,9 @@ class MyGrid(Widget):
         self.yotube_id2name = {x[0]: x[1] for x in cur.fetchall()}
         self.name2yotube_id = {self.yotube_id2name[x]: x for x in self.yotube_id2name}
         self.ids.lecture.values = self.name2yotube_id.keys()
+        self.timestamps = {}
+        self.enterstamps = []
+
 
     def cancel_dialog(self):
         self._popup.dismiss()
@@ -181,6 +184,7 @@ class MyGrid(Widget):
         cr = 0
         for subtitle in subtitles:
             timestamps.append((len(transcr), youtube_id, subtitle['start'], my_user_id))
+            self.timestamps[subtitle['start']] = len(transcr)
             transcr += subtitle['text'] + ' '
         cur.executemany('INSERT INTO timestamps VALUES(?, ?, ?, ?);', timestamps)
         cur.execute('UPDATE audios SET transcription=? WHERE id=?;', (transcr, youtube_id))
@@ -322,17 +326,29 @@ class MyGrid(Widget):
     def spn_lecture_click(self, value):
         cur.execute('SELECT transcription FROM audios WHERE id = ?;', (self.name2yotube_id[value],))
         lecture = cur.fetchone()
+        text = lecture[0]
         cur.execute('SELECT symbol_number FROM enterstamps WHERE audio_id = ? ORDER BY symbol_number;',
                     (self.name2yotube_id[value],))
-        enterstamps = cur.fetchall()
-        text = lecture[0]
-        for i, enterstamp in enumerate(enterstamps):
+        self.enterstamps = [x[0] for x in cur.fetchall()]
+        cur.execute('SELECT second, symbol_number FROM timestamps WHERE audio_id = ? ORDER BY symbol_number;',
+                    (self.name2yotube_id[value],))
+        self.timestamps = {x[0]: x[1] for x in cur.fetchall()}
+        for i, enterstamp in enumerate(self.enterstamps):
             text = text[:enterstamp - i] + '\n' + text[enterstamp - i:]
         self.ids.transcript_text.text = text
 
     def btn_conspect_click(self, value):
         self.ids.file_id_time.text = value
         self.ids.transcript_text.text = f'You Selected: {value}'
+
+    def transcript_text_click(self):
+        text_index = self.ids.transcript_text.cursor_index()
+        q=0
+        return
+
+    def transcript_text_double_click(self):
+        q=0
+        return
 
     def transcript_text_changed(self, *args):
         """ Пока не используем. Посмотрим будут ди глюки со скролбаром """
@@ -396,6 +412,8 @@ if __name__ == "__main__":
                 CONSTRAINT id PRIMARY KEY (symbol_number, audio_id),
                 FOREIGN KEY (audio_id) REFERENCES audios(id),
                 FOREIGN KEY (user_id) REFERENCES users(id));""")
+        conn.commit()
+        cur.execute("""CREATE UNIQUE INDEX IF NOT EXISTS idx_symbol_number ON timestamps (symbol_number);""")
         conn.commit()
         cur.execute("""
             CREATE TABLE IF NOT EXISTS pdfs(

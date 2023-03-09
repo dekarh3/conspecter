@@ -154,6 +154,8 @@
                         multiline: True
                         hint_text: '^ Выберите файл лекции ^'
                         readonly: True
+                        on_touch_up: root.transcript_text_click()
+                        on_double_tap: root.transcript_text_double_click()
                         #on_text: root.transcript_text_changed()
                 BoxLayout:
                     orientation: 'horizontal'
