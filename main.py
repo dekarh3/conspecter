@@ -162,6 +162,7 @@ class MyGrid(Widget):
         self.yotube_id2name = {x[0]: x[1] for x in cur.fetchall()}
         self.name2yotube_id = {self.yotube_id2name[x]: x for x in self.yotube_id2name}
         self.ids.lecture.values = self.name2yotube_id.keys()
+        self.current_youtube_id = ''
         self.timestamps = {}
         self.enterstamps = []
 
@@ -184,8 +185,11 @@ class MyGrid(Widget):
         cr = 0
         for subtitle in subtitles:
             timestamps.append((len(transcr), youtube_id, subtitle['start'], my_user_id))
-            self.timestamps[subtitle['start']] = len(transcr)
+            last_subtitle = subtitle['start']
+            self.timestamps[len(transcr)] = subtitle['start']
             transcr += subtitle['text'] + ' '
+        self.timestamps[len(transcr)] = last_subtitle
+        timestamps.append((len(transcr), youtube_id, last_subtitle, my_user_id))
         cur.executemany('INSERT INTO timestamps VALUES(?, ?, ?, ?);', timestamps)
         cur.execute('UPDATE audios SET transcription=? WHERE id=?;', (transcr, youtube_id))
         conn.commit()
@@ -332,7 +336,7 @@ class MyGrid(Widget):
         self.enterstamps = [x[0] for x in cur.fetchall()]
         cur.execute('SELECT second, symbol_number FROM timestamps WHERE audio_id = ? ORDER BY symbol_number;',
                     (self.name2yotube_id[value],))
-        self.timestamps = {x[0]: x[1] for x in cur.fetchall()}
+        self.timestamps = {x[1]: x[0] for x in cur.fetchall()}
         for i, enterstamp in enumerate(self.enterstamps):
             text = text[:enterstamp - i] + '\n' + text[enterstamp - i:]
         self.ids.transcript_text.text = text
@@ -343,12 +347,23 @@ class MyGrid(Widget):
 
     def transcript_text_click(self):
         text_index = self.ids.transcript_text.cursor_index()
-        q=0
-        return
+        text_index_delta = len(list([x for x in self.enterstamps if x <= text_index]))
+        text_index_real = text_index - text_index_delta
+        tir_left = max(list([x for x in self.timestamps.keys() if x <= text_index_real]))
+        tir_right = min(list([x for x in self.timestamps.keys() if x > text_index_real]))
+        self.ids.file_id_time.text = str(self.timestamps[tir_left] + (text_index_real - tir_left) *
+                          (self.timestamps[tir_right] - self.timestamps[tir_left])/(tir_right - tir_left))
 
     def transcript_text_double_click(self):
-        q=0
-        return
+        text_index = self.ids.transcript_text.cursor_index()
+        text_index_delta = len(list([x for x in self.enterstamps if x <= text_index]))
+        text_index_real = text_index - text_index_delta
+        self.enterstamps.append(text_index_real)
+        self.ids.transcript_text.text = self.ids.transcript_text.text[:text_index_real] + '\n' \
+                                        + self.ids.transcript_text.text[text_index_real:]
+        if self.current_youtube_id:
+            cur.execute('INSERT INTO enterstamps VALUES(?,?);', (text_index_real, self.current_youtube_id))
+
 
     def transcript_text_changed(self, *args):
         """ Пока не используем. Посмотрим будут ди глюки со скролбаром """
