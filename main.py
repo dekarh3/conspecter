@@ -164,7 +164,7 @@ class MyGrid(Widget):
         self.ids.lecture.values = self.name2yotube_id.keys()
         self.current_youtube_id = ''
         self.timestamps = {}
-        self.enterstamps = []
+        self.enterstamps = {}
 
 
     def cancel_dialog(self):
@@ -334,7 +334,7 @@ class MyGrid(Widget):
         text = lecture[0]
         cur.execute('SELECT symbol_number FROM enterstamps WHERE audio_id = ? ORDER BY symbol_number;',
                     (self.name2yotube_id[value],))
-        self.enterstamps = [x[0] for x in cur.fetchall()]
+        self.enterstamps = {x[0]: '\n' for x in cur.fetchall()}
         cur.execute('SELECT second, symbol_number FROM timestamps WHERE audio_id = ? ORDER BY symbol_number;',
                     (self.name2yotube_id[value],))
         self.timestamps = {x[1]: x[0] for x in cur.fetchall()}
@@ -348,7 +348,7 @@ class MyGrid(Widget):
 
     def transcript_text_click(self):
         text_index = self.ids.transcript_text.cursor_index()
-        text_index_delta = len(list([x for x in self.enterstamps if x <= text_index]))
+        text_index_delta = len(list([x for x in self.enterstamps.keys() if x <= text_index]))
         text_index_original = text_index - text_index_delta
         if self.current_youtube_id:
             tir_left = max(list([x for x in self.timestamps.keys() if x <= text_index_original]))
@@ -358,14 +358,21 @@ class MyGrid(Widget):
 
     def transcript_text_double_click(self):
         text_index = self.ids.transcript_text.cursor_index()
-        text_index_delta = len(list([x for x in self.enterstamps if x <= text_index]))
+        text_index_delta = len(list([x for x in self.enterstamps.keys() if x <= text_index]))
         text_index_original = text_index - text_index_delta
         if self.current_youtube_id:
-            self.enterstamps.append(text_index_original)
-            self.ids.transcript_text.text = self.ids.transcript_text.text[:text_index] + '\n' \
-                                            + self.ids.transcript_text.text[text_index:]
-            cur.execute('INSERT INTO enterstamps VALUES(?,?);', (text_index_original, self.current_youtube_id))
-            conn.commit()
+            if self.enterstamps.get(text_index_original):
+                self.ids.transcript_text.text = self.ids.transcript_text.text[:text_index - 1] \
+                                                + self.ids.transcript_text.text[text_index:]
+                cur.execute('DELETE FROM enterstamps WHERE symbol_number=?;', (text_index_original,))
+                conn.commit()
+                self.enterstamps.pop(text_index_original)
+            else:
+                self.enterstamps[text_index_original] = '\n'
+                self.ids.transcript_text.text = self.ids.transcript_text.text[:text_index] + '\n' \
+                                                + self.ids.transcript_text.text[text_index:]
+                cur.execute('INSERT INTO enterstamps VALUES(?,?);', (text_index_original, self.current_youtube_id))
+                conn.commit()
 
     def transcript_text_changed(self, *args):
         """ Пока не используем. Посмотрим будут ли глюки со скролбаром """
