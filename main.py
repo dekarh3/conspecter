@@ -329,6 +329,7 @@ class MyGrid(Widget):
 
     def spn_lecture_click(self, value):
         cur.execute('SELECT transcription FROM audios WHERE id = ?;', (self.name2yotube_id[value],))
+        self.current_youtube_id = self.name2yotube_id[value]
         lecture = cur.fetchone()
         text = lecture[0]
         cur.execute('SELECT symbol_number FROM enterstamps WHERE audio_id = ? ORDER BY symbol_number;',
@@ -338,7 +339,7 @@ class MyGrid(Widget):
                     (self.name2yotube_id[value],))
         self.timestamps = {x[1]: x[0] for x in cur.fetchall()}
         for i, enterstamp in enumerate(self.enterstamps):
-            text = text[:enterstamp - i] + '\n' + text[enterstamp - i:]
+            text = text[:enterstamp + i] + '\n' + text[enterstamp + i:]
         self.ids.transcript_text.text = text
 
     def btn_conspect_click(self, value):
@@ -348,25 +349,26 @@ class MyGrid(Widget):
     def transcript_text_click(self):
         text_index = self.ids.transcript_text.cursor_index()
         text_index_delta = len(list([x for x in self.enterstamps if x <= text_index]))
-        text_index_real = text_index - text_index_delta
-        tir_left = max(list([x for x in self.timestamps.keys() if x <= text_index_real]))
-        tir_right = min(list([x for x in self.timestamps.keys() if x > text_index_real]))
-        self.ids.file_id_time.text = str(self.timestamps[tir_left] + (text_index_real - tir_left) *
-                          (self.timestamps[tir_right] - self.timestamps[tir_left])/(tir_right - tir_left))
+        text_index_original = text_index - text_index_delta
+        if self.current_youtube_id:
+            tir_left = max(list([x for x in self.timestamps.keys() if x <= text_index_original]))
+            tir_right = min(list([x for x in self.timestamps.keys() if x > text_index_original]))
+            self.ids.file_id_time.text = str(self.timestamps[tir_left] + (text_index_original - tir_left) *
+                              (self.timestamps[tir_right] - self.timestamps[tir_left])/(tir_right - tir_left))
 
     def transcript_text_double_click(self):
         text_index = self.ids.transcript_text.cursor_index()
         text_index_delta = len(list([x for x in self.enterstamps if x <= text_index]))
-        text_index_real = text_index - text_index_delta
-        self.enterstamps.append(text_index_real)
-        self.ids.transcript_text.text = self.ids.transcript_text.text[:text_index_real] + '\n' \
-                                        + self.ids.transcript_text.text[text_index_real:]
+        text_index_original = text_index - text_index_delta
         if self.current_youtube_id:
-            cur.execute('INSERT INTO enterstamps VALUES(?,?);', (text_index_real, self.current_youtube_id))
-
+            self.enterstamps.append(text_index_original)
+            self.ids.transcript_text.text = self.ids.transcript_text.text[:text_index] + '\n' \
+                                            + self.ids.transcript_text.text[text_index:]
+            cur.execute('INSERT INTO enterstamps VALUES(?,?);', (text_index_original, self.current_youtube_id))
+            conn.commit()
 
     def transcript_text_changed(self, *args):
-        """ Пока не используем. Посмотрим будут ди глюки со скролбаром """
+        """ Пока не используем. Посмотрим будут ли глюки со скролбаром """
         width_calc = self.grid.ids.scroller.width
         for line_label in self.grid.ids.ti._lines_labels:
             width_calc = max(width_calc, line_label.width + 20)   # add 20 to avoid automatically creating a new line
