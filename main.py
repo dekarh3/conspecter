@@ -4,6 +4,7 @@ kivy.require('1.9.1')
 import os
 import sqlite3
 from datetime import datetime
+import hashlib
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled
 from kivy.app import App
 from kivy.factory import Factory
@@ -165,6 +166,8 @@ class MyGrid(Widget):
         self.current_youtube_id = ''
         self.timestamps = {}
         self.enterstamps = {}
+        self.conspects = {}
+        self.conspect2icon = {}
 
 
     def cancel_dialog(self):
@@ -181,7 +184,7 @@ class MyGrid(Widget):
         transcr = ''
         timestamps = []
         cur.execute('INSERT INTO audios VALUES(?, ?, ?, ?, ?, ?, ?);',
-                    (youtube_id, lecture_name, '',datetime.now(), 0, '',my_user_id))
+                    (youtube_id, lecture_name, '',datetime.utcnow(), 0, '',my_user_id))
         cr = 0
         for subtitle in subtitles:
             timestamps.append((len(transcr), youtube_id, subtitle['start'], my_user_id))
@@ -340,25 +343,40 @@ class MyGrid(Widget):
         self.timestamps = {x[1]: x[0] for x in cur.fetchall()}
         for i, enterstamp in enumerate(self.enterstamps):
             text = text[:enterstamp + i] + '\n' + text[enterstamp + i:]
+        conspects = connd.execute(
+            'SELECT * FROM conspects WHERE audio_id = ? ORDER BY symbol_number;', (self.name2yotube_id[value],))
+        for conspect in conspects:
+            if self.conspects.get(conspect['symbol_number']):
+                conspect['symbol_number'][
+                    conspect['user_id'] + '_' + str(conspect['tag_id'])] = conspect['content']
+                self.conspect2icon[conspect['symbol_number']] = '*'
+            else:
+                self.conspects[conspect['symbol_number']] = {
+                    conspect['user_id'] + '_' + str(conspect['tag_id']): conspect['content']}
+                self.conspect2icon[conspect['symbol_number']] = '+'
+        for i, conspect_symbol in enumerate(self.conspects.keys()):
+            text = text[:conspect_symbol + i + 1] + self.conspect2icon[conspect_symbol] + text[conspect_symbol + i + 1:]
         self.ids.transcript_text.text = text
 
     def btn_conspect_click(self, value):
-        self.ids.file_id_time.text = value
-        self.ids.transcript_text.text = f'You Selected: {value}'
+        self.ids.file_id_time.text = '{:.2f}'.format(value)
 
     def transcript_text_click(self):
         text_index = self.ids.transcript_text.cursor_index()
-        text_index_delta = len(list([x for x in self.enterstamps.keys() if x <= text_index]))
+        text_index_delta = len(list([x for x in self.enterstamps.keys() if x <= text_index])) + \
+                           len(list([x for x in self.conspects.keys() if x <= text_index]))
         text_index_original = text_index - text_index_delta
         if self.current_youtube_id:
             tir_left = max(list([x for x in self.timestamps.keys() if x <= text_index_original]))
             tir_right = min(list([x for x in self.timestamps.keys() if x > text_index_original]))
-            self.ids.file_id_time.text = str(self.timestamps[tir_left] + (text_index_original - tir_left) *
-                              (self.timestamps[tir_right] - self.timestamps[tir_left])/(tir_right - tir_left))
+            self.ids.file_id_time.text = '{:.2f}'.format(
+                self.timestamps[tir_left] + (text_index_original - tir_left)
+                * (self.timestamps[tir_right] - self.timestamps[tir_left])/(tir_right - tir_left))
 
     def transcript_text_double_click(self):
         text_index = self.ids.transcript_text.cursor_index()
-        text_index_delta = len(list([x for x in self.enterstamps.keys() if x <= text_index]))
+        text_index_delta = len(list([x for x in self.enterstamps.keys() if x <= text_index])) + \
+                           len(list([x for x in self.conspects.keys() if x <= text_index]))
         text_index_original = text_index - text_index_delta
         if self.current_youtube_id:
             if self.enterstamps.get(text_index_original):
@@ -373,6 +391,51 @@ class MyGrid(Widget):
                                                 + self.ids.transcript_text.text[text_index:]
                 cur.execute('INSERT INTO enterstamps VALUES(?,?);', (text_index_original, self.current_youtube_id))
                 conn.commit()
+
+    def btn_plus_conspect_click(self):
+        """ Не проработан вариант редактирования, будет ошибка если уже есть
+        комбинация symbol_number, audio_id, tag_id, user_id"""
+        if self.ids.short_text.text and self.current_youtube_id and self.tvedit_current_id:
+            text_index = self.ids.transcript_text.cursor_index()
+            text_index_delta = len(list([x for x in self.enterstamps.keys() if x <= text_index])) + \
+                               len(list([x for x in self.conspects.keys() if x <= text_index]))
+            text_index_original = text_index - text_index_delta
+            tir_left = max(list([x for x in self.timestamps.keys() if x <= text_index_original]))
+            tir_right = min(list([x for x in self.timestamps.keys() if x > text_index_original]))
+            #                 symbol_number INT,
+            #                 audio_id TEXT,
+            #                 hash TEXT,
+            #                 content TEXT NOT NULL,
+            #                 edited DATETIME,
+            #                 second REAL,
+            #                 page INT,
+            #                 tag_id INT,
+            #                 pdf_id TEXT,
+            #                 user_id TEXT,
+            cur.execute('INSERT INTO conspects VALUES(?,?,?,?,?,?,?,?,?,?);', (
+                text_index_original,
+                self.current_youtube_id,
+                hashlib.md5(self.ids.short_text.text.encode('utf-8')).hexdigest(),
+                self.ids.short_text.text,
+                datetime.utcnow(),
+                self.timestamps[tir_left] + (text_index_original - tir_left) * (
+                        self.timestamps[tir_right] - self.timestamps[tir_left]) / (tir_right - tir_left),
+                None,
+                self.tvedit_current_id,
+                None,
+                my_user_id))
+            conn.commit()
+            if self.conspects.get(text_index_original):
+                self.conspects[text_index_original][
+                    my_user_id + '_' + str(self.tvedit_current_id)] = self.ids.short_text.text
+                self.conspect2icon[text_index_original] = '*'
+            else:
+                self.conspects[text_index_original] = {
+                    my_user_id + '_' + str(self.tvedit_current_id): self.ids.short_text.text}
+                self.conspect2icon[text_index_original] = '+'
+            text = self.ids.transcript_text.text
+            self.ids.transcript_text.text = text[:text_index] + self.conspect2icon[text_index_original] \
+                                            + text[text_index:]
 
     def transcript_text_changed(self, *args):
         """ Пока не используем. Посмотрим будут ли глюки со скролбаром """
@@ -462,7 +525,7 @@ if __name__ == "__main__":
                 tag_id INT,
                 pdf_id TEXT,
                 user_id TEXT,
-                CONSTRAINT id PRIMARY KEY (symbol_number, audio_id, tag_id),
+                CONSTRAINT id PRIMARY KEY (symbol_number, audio_id, tag_id, user_id),
                 FOREIGN KEY (tag_id) REFERENCES tag(id),
                 FOREIGN KEY (audio_id) REFERENCES audios(id),
                 FOREIGN KEY (pdf_id) REFERENCES pdfs(id),
@@ -482,6 +545,9 @@ if __name__ == "__main__":
         if os.path.exists(os.path.join(APP_PATH, 'main.db')):
             conn = sqlite3.connect(os.path.join(APP_PATH, 'main.db'))
             cur = conn.cursor()
+            connd = sqlite3.connect(os.path.join(APP_PATH, 'main.db'))
+            connd.row_factory = sqlite3.Row
+
     Factory.register('LoadDialog', cls=LoadDialog)
     my_user_id = 'q1q1'
     my_user_name = 'Денис Алексеев'

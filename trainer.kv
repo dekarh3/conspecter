@@ -135,11 +135,23 @@
                         size_hint_y: None
                         text: "Файл стенограммы"
                         on_text: root.spn_lecture_click(lecture.text)
+                RecycleView:
+                    size_hint_y: None
+                    height: dp(40)
+                    id: mention
+                    viewclass: 'MyButton'
+                    data: [{'text':'один'},{'text': 'два'}]
+                    RecycleBoxLayout:
+                        default_size: None, dp(40)
+                        default_size_hint: 1, None
+                        size_hint_y: None
+                        height: self.minimum_height
+                        orientation: 'horizontal'
                 Label:
-			        id: file_id_time
-			        text: "Pick Favorite Pizza Below"
-        			height: dp(40)
-        			size_hint_y: None
+                    id: file_id_time
+                    text: ''
+                    height: dp(20)
+                    size_hint_y: None
                 ScrollView:
                     id: scroller
                     do_scroll: False, True
@@ -162,10 +174,12 @@
                     size_hint_y: None
                     height: dp(40)
                     Button:
+                        id: btn_plus_conspect
                         text: '+'
                         font_size: dp(40)
                         height: dp(40)
                         width: dp(40)
+                        on_release: app.root.btn_plus_conspect_click()
                     Button:
                         text: '<'
                         font_size: dp(40)
