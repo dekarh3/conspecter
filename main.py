@@ -14,6 +14,7 @@ from kivy.uix.treeview import TreeView, TreeViewLabel
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.filechooser import FileChooserListView
+from kivy.uix.button import Button
 from kivy.uix.popup import Popup
 from kivy.utils import platform
 if platform == 'android':
@@ -35,6 +36,16 @@ class MyFileChooserListView(FileChooserListView):
 class MyTreeViewLabel(TreeViewLabel):
     external_id = NumericProperty(0)
 
+    def label_touch(self, tvl, mouse):
+        self.parent.parent.parent.parent.parent.parent.tv_touch(tvl.uid)
+
+
+class MyButton(Button):
+    ext_id = NumericProperty(0)
+
+    def on_release(self):
+        q=0
+
 
 class MyTreeView(TreeView):
     def __init__(self, **kwargs):
@@ -46,15 +57,18 @@ class MyTreeView(TreeView):
 
     def populate_tree_view(self, parent, node_id):
         if parent is None:
-            tree_node = self.add_node(MyTreeViewLabel(text='', is_open=True, external_id=0))
+            my_tree_view_label = MyTreeViewLabel(text='', is_open=True, external_id=0)
+            my_tree_view_label.bind(on_touch_down=my_tree_view_label.label_touch)
+            tree_node = self.add_node(my_tree_view_label)
             self.uid2id[tree_node.uid] = 0
             self.id2uid[0] = tree_node.uid
             self.nodes[0] = tree_node
         else:
             cur.execute('SELECT id, name FROM tags WHERE id = ?;', (node_id,))
             request = cur.fetchone()
-            tree_node = self.add_node(MyTreeViewLabel(text=request[1], is_open=True,
-                                                           external_id=request[0]), parent)
+            my_tree_view_label = MyTreeViewLabel(text=request[1], is_open=True, external_id=request[0])
+            my_tree_view_label.bind(on_touch_down=my_tree_view_label.label_touch)
+            tree_node = self.add_node(my_tree_view_label, parent)
             self.uid2id[tree_node.uid] = request[0]
             self.id2uid[request[0]] = tree_node.uid
             self.nodes[request[0]] = tree_node
@@ -166,8 +180,9 @@ class MyGrid(Widget):
         self.current_youtube_id = ''
         self.timestamps = {}
         self.enterstamps = {}
-        self.conspects = {}
+        self.conspect_ids = {}
         self.conspect2icon = {}
+        self.conspect_tags = {}
 
 
     def cancel_dialog(self):
@@ -274,9 +289,10 @@ class MyGrid(Widget):
             cur.execute('INSERT INTO tags VALUES(?, ?, ?, ?);', (
                 request[0] + 1, self.tvedit_current_id, self.ids.tvedit_text.text, my_user_id))
             conn.commit()
-            tree_node = self.tag.add_node(MyTreeViewLabel(
-                text=self.ids.tvedit_text.text, is_open=True,external_id=request[0] + 1),
-                self.tag.nodes[self.tvedit_current_id])
+            my_tree_view_label = MyTreeViewLabel(
+                text=self.ids.tvedit_text.text, is_open=True, external_id=request[0] + 1)
+            my_tree_view_label.bind(on_touch_down=my_tree_view_label.label_touch)
+            tree_node = self.tag.add_node(my_tree_view_label, self.tag.nodes[self.tvedit_current_id])
             self.tag.uid2id[tree_node.uid] = request[0] + 1
             self.tag.id2uid[request[0] + 1] = tree_node.uid
             self.tag.nodes[request[0] + 1] = tree_node
@@ -305,6 +321,7 @@ class MyGrid(Widget):
             self.tvedit_captured_id = -1
 
     def tv_touch(self, value):
+        """ Нажатие на элемент дерева тэгов"""
         self.tvedit_current_id = self.tag.uid2id[value]
         if self.tvedit_regim == 'Редактирование' or self.tvedit_regim == 'Удаление':
             self.ids.tvedit_text.text = self.tag.nodes[self.tvedit_current_id].text
@@ -317,6 +334,12 @@ class MyGrid(Widget):
         if self.tvedit_regim == 'Удаление':
             self.ids.btn_tvedit_plus.disabled = not self.tag.nodes[self.tvedit_current_id].is_leaf
         self.ids.tag_path.text = '\\'.join(self.tag.parent_list(self.tvedit_current_id))
+
+
+
+
+
+        #self.ids.mention.data =
 
     def tvedit_text_click(self):
         if self.tvedit_regim == 'Добавление':
@@ -331,6 +354,7 @@ class MyGrid(Widget):
                 self.ids.btn_tvedit_plus.disabled = True
 
     def spn_lecture_click(self, value):
+        """ Выбор лекции"""
         cur.execute('SELECT transcription FROM audios WHERE id = ?;', (self.name2yotube_id[value],))
         self.current_youtube_id = self.name2yotube_id[value]
         lecture = cur.fetchone()
@@ -346,15 +370,21 @@ class MyGrid(Widget):
         conspects = connd.execute(
             'SELECT * FROM conspects WHERE audio_id = ? ORDER BY symbol_number;', (self.name2yotube_id[value],))
         for conspect in conspects:
-            if self.conspects.get(conspect['symbol_number']):
-                conspect['symbol_number'][
+            if self.conspect_ids.get(conspect['symbol_number']):
+                self.conspect_ids[conspect['symbol_number']][
                     conspect['user_id'] + '_' + str(conspect['tag_id'])] = conspect['content']
                 self.conspect2icon[conspect['symbol_number']] = '*'
             else:
-                self.conspects[conspect['symbol_number']] = {
+                self.conspect_ids[conspect['symbol_number']] = {
                     conspect['user_id'] + '_' + str(conspect['tag_id']): conspect['content']}
-                self.conspect2icon[conspect['symbol_number']] = '+'
-        for i, conspect_symbol in enumerate(self.conspects.keys()):
+            if self.conspect_tags.get(conspect['tag_id']):
+                self.conspect_tags[conspect['tag_id']][
+                    conspect['user_id'] + '_' + str(conspect['symbol_number'])] = conspect['content']
+            else:
+                self.conspect_tags[conspect['tag_id']] = {
+                    conspect['user_id'] + '_' + str(conspect['symbol_number']): conspect['content']}
+
+        for i, conspect_symbol in enumerate(self.conspect_ids.keys()):
             text = text[:conspect_symbol + i + 1] + self.conspect2icon[conspect_symbol] + text[conspect_symbol + i + 1:]
         self.ids.transcript_text.text = text
 
@@ -364,7 +394,7 @@ class MyGrid(Widget):
     def transcript_text_click(self):
         text_index = self.ids.transcript_text.cursor_index()
         text_index_delta = len(list([x for x in self.enterstamps.keys() if x <= text_index])) + \
-                           len(list([x for x in self.conspects.keys() if x <= text_index]))
+                           len(list([x for x in self.conspect_ids.keys() if x <= text_index]))
         text_index_original = text_index - text_index_delta
         if self.current_youtube_id:
             tir_left = max(list([x for x in self.timestamps.keys() if x <= text_index_original]))
@@ -376,7 +406,7 @@ class MyGrid(Widget):
     def transcript_text_double_click(self):
         text_index = self.ids.transcript_text.cursor_index()
         text_index_delta = len(list([x for x in self.enterstamps.keys() if x <= text_index])) + \
-                           len(list([x for x in self.conspects.keys() if x <= text_index]))
+                           len(list([x for x in self.conspect_ids.keys() if x <= text_index]))
         text_index_original = text_index - text_index_delta
         if self.current_youtube_id:
             if self.enterstamps.get(text_index_original):
@@ -393,12 +423,13 @@ class MyGrid(Widget):
                 conn.commit()
 
     def btn_plus_conspect_click(self):
-        """ Не проработан вариант редактирования, будет ошибка если уже есть
+        """ Добавление конспекта
+        Не проработан вариант редактирования, будет ошибка если уже есть
         комбинация symbol_number, audio_id, tag_id, user_id"""
         if self.ids.short_text.text and self.current_youtube_id and self.tvedit_current_id:
             text_index = self.ids.transcript_text.cursor_index()
             text_index_delta = len(list([x for x in self.enterstamps.keys() if x <= text_index])) + \
-                               len(list([x for x in self.conspects.keys() if x <= text_index]))
+                               len(list([x for x in self.conspect_ids.keys() if x <= text_index]))
             text_index_original = text_index - text_index_delta
             tir_left = max(list([x for x in self.timestamps.keys() if x <= text_index_original]))
             tir_right = min(list([x for x in self.timestamps.keys() if x > text_index_original]))
@@ -425,14 +456,20 @@ class MyGrid(Widget):
                 None,
                 my_user_id))
             conn.commit()
-            if self.conspects.get(text_index_original):
-                self.conspects[text_index_original][
+            if self.conspect_ids.get(text_index_original):
+                self.conspect_ids[text_index_original][
                     my_user_id + '_' + str(self.tvedit_current_id)] = self.ids.short_text.text
                 self.conspect2icon[text_index_original] = '*'
             else:
-                self.conspects[text_index_original] = {
+                self.conspect_ids[text_index_original] = {
                     my_user_id + '_' + str(self.tvedit_current_id): self.ids.short_text.text}
                 self.conspect2icon[text_index_original] = '+'
+            if self.conspect_tags.get(self.tvedit_current_id):
+                self.conspect_tags[self.tvedit_current_id][
+                    my_user_id + '_' + str(text_index_original)] = self.ids.short_text.text
+            else:
+                self.conspect_tags[self.tvedit_current_id] = {
+                    my_user_id + '_' + str(text_index_original): self.ids.short_text.text}
             text = self.ids.transcript_text.text
             self.ids.transcript_text.text = text[:text_index] + self.conspect2icon[text_index_original] \
                                             + text[text_index:]

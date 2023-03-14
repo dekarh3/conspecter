@@ -1,13 +1,13 @@
 #:kivy 1.8.0
 #:import utils kivy.utils
 
-<MyButton@Button>:
-    on_press:
-        app.root.btn_conspect_click(self.text)
+#<MyButton@Button>:
+#    on_press:
+#        app.root.btn_conspect_click(self.uid)
 
-<MyTreeViewLabel@TreeViewLabel>
-    on_touch_down:
-        app.root.tv_touch(self.uid)
+#<MyTreeViewLabel@TreeViewLabel>
+#    on_touch_down:
+#        app.root.tv_touch(self.uid)
 
 <LoadDialog>:
     BoxLayout:
@@ -136,11 +136,11 @@
                         text: "Файл стенограммы"
                         on_text: root.spn_lecture_click(lecture.text)
                 RecycleView:
+                    id: mention
                     size_hint_y: None
                     height: dp(40)
-                    id: mention
                     viewclass: 'MyButton'
-                    data: [{'text':'один'},{'text': 'два'}]
+                    data: [{'text':'один', 'ext_id': 1},{'text': 'два', 'ext_id': 2}]
                     RecycleBoxLayout:
                         default_size: None, dp(40)
                         default_size_hint: 1, None
