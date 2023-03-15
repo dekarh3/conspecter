@@ -138,7 +138,7 @@ class LoadYoutubeDialog(FloatLayout):
 
     def ok_click(self, youtube_id, lecture_name, path, selection):
         if self.lecture_type == 'youtube' and len(youtube_id) > 9 and lecture_name:
-            cur.execute('SELECT id FROM audios WHERE id = ?;', (youtube_id,))
+            cur.execute('SELECT youtube_id FROM youtube_ids WHERE youtube_id = ?;', (youtube_id,))
             request = cur.fetchall()
             if len(request) < 1:
                 cur.execute('SELECT name FROM audios WHERE name = ?;', (lecture_name,))
@@ -177,7 +177,7 @@ class MyGrid(Widget):
         self.yotube_id2name = {x[0]: x[1] for x in cur.fetchall()}
         self.name2yotube_id = {self.yotube_id2name[x]: x for x in self.yotube_id2name}
         self.ids.lecture.values = self.name2yotube_id.keys()
-        self.current_youtube_id = ''
+        self.current_youtube_id = 0
         self.timestamps = {}
         self.enterstamps = {}
         self.conspect_ids = {}
@@ -198,18 +198,25 @@ class MyGrid(Widget):
         """ Загрузка субтитров с youtube или pdf файла целиком"""
         transcr = ''
         timestamps = []
+        cur.execute('SELECT max(id) FROM audios')
+        request = cur.fetchone()
+        if request[0]:
+            y_id = request[0] + 1
+        else:
+            y_id = 1
+        cur.execute('INSERT INTO youtube_ids VALUES(?, ?, ?);', (None, youtube_id, y_id))
         cur.execute('INSERT INTO audios VALUES(?, ?, ?, ?, ?, ?, ?);',
-                    (youtube_id, lecture_name, '',datetime.utcnow(), 0, '',my_user_id))
-        cr = 0
+                    (y_id, lecture_name, '',datetime.utcnow(), 0, '',my_user_id))
+        conn.commit()
         for subtitle in subtitles:
-            timestamps.append((len(transcr), youtube_id, subtitle['start'], my_user_id))
+            timestamps.append((len(transcr), y_id, subtitle['start'], my_user_id))
             last_subtitle = subtitle['start']
             self.timestamps[len(transcr)] = subtitle['start']
             transcr += subtitle['text'] + ' '
         self.timestamps[len(transcr)] = last_subtitle
-        timestamps.append((len(transcr), youtube_id, last_subtitle, my_user_id))
+        timestamps.append((len(transcr), y_id, last_subtitle, my_user_id))
         cur.executemany('INSERT INTO timestamps VALUES(?, ?, ?, ?);', timestamps)
-        cur.execute('UPDATE audios SET transcription=? WHERE id=?;', (transcr, youtube_id))
+        cur.execute('UPDATE audios SET transcription=? WHERE id=?;', (transcr, y_id))
         conn.commit()
         cur.execute('SELECT id, name FROM audios;')
         self.yotube_id2name = {x[0]: x[1] for x in cur.fetchall()}
@@ -355,20 +362,20 @@ class MyGrid(Widget):
 
     def spn_lecture_click(self, value):
         """ Выбор лекции"""
-        cur.execute('SELECT transcription FROM audios WHERE id = ?;', (self.name2yotube_id[value],))
         self.current_youtube_id = self.name2yotube_id[value]
+        cur.execute('SELECT transcription FROM audios WHERE id=?;', (self.current_youtube_id,))
         lecture = cur.fetchone()
         text = lecture[0]
         cur.execute('SELECT symbol_number FROM enterstamps WHERE audio_id = ? ORDER BY symbol_number;',
-                    (self.name2yotube_id[value],))
+                    (self.current_youtube_id,))
         self.enterstamps = {x[0]: '\n' for x in cur.fetchall()}
         cur.execute('SELECT second, symbol_number FROM timestamps WHERE audio_id = ? ORDER BY symbol_number;',
-                    (self.name2yotube_id[value],))
+                    (self.current_youtube_id,))
         self.timestamps = {x[1]: x[0] for x in cur.fetchall()}
         for i, enterstamp in enumerate(self.enterstamps):
             text = text[:enterstamp + i] + '\n' + text[enterstamp + i:]
         conspects = connd.execute(
-            'SELECT * FROM conspects WHERE audio_id = ? ORDER BY symbol_number;', (self.name2yotube_id[value],))
+            'SELECT * FROM conspects WHERE audio_id = ? ORDER BY symbol_number;', (self.current_youtube_id,))
         for conspect in conspects:
             if self.conspect_ids.get(conspect['symbol_number']):
                 self.conspect_ids[conspect['symbol_number']][
@@ -383,7 +390,6 @@ class MyGrid(Widget):
             else:
                 self.conspect_tags[conspect['tag_id']] = {
                     conspect['user_id'] + '_' + str(conspect['symbol_number']): conspect['content']}
-
         for i, conspect_symbol in enumerate(self.conspect_ids.keys()):
             text = text[:conspect_symbol + i + 1] + self.conspect2icon[conspect_symbol] + text[conspect_symbol + i + 1:]
         self.ids.transcript_text.text = text
@@ -509,7 +515,7 @@ if __name__ == "__main__":
         conn.commit()
         cur.execute("""
             CREATE TABLE IF NOT EXISTS audios(
-                id TEXT PRIMARY KEY,
+                id INT PRIMARY KEY,
                 name TEXT NOT NULL,
                 author TEXT,
                 created DATETIME,
@@ -519,9 +525,16 @@ if __name__ == "__main__":
                 FOREIGN KEY (user_id) REFERENCES users(id));""")
         conn.commit()
         cur.execute("""
+            CREATE TABLE IF NOT EXISTS youtube_ids(
+                id INT PRIMARY KEY,
+                youtube_id TEXT NOT NULL,
+                audio_id INT,
+                FOREIGN KEY (audio_id) REFERENCES audios(id));""")
+        conn.commit()
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS enterstamps(
                 symbol_number INT,                
-                audio_id TEXT,
+                audio_id INT,
                 CONSTRAINT id PRIMARY KEY (symbol_number, audio_id),
                 FOREIGN KEY (audio_id) REFERENCES audios(id));""")
         conn.commit()
@@ -530,7 +543,7 @@ if __name__ == "__main__":
         cur.execute("""
             CREATE TABLE IF NOT EXISTS timestamps(
                 symbol_number INT,                
-                audio_id TEXT,
+                audio_id INT,
                 second REAL,
                 user_id TEXT,
                 CONSTRAINT id PRIMARY KEY (symbol_number, audio_id),
@@ -553,7 +566,7 @@ if __name__ == "__main__":
         cur.execute("""
             CREATE TABLE IF NOT EXISTS conspects(
                 symbol_number INT,                    
-                audio_id TEXT,
+                audio_id INT,
                 hash TEXT,
                 content TEXT NOT NULL,                    
                 edited DATETIME,
