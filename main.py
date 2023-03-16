@@ -341,12 +341,12 @@ class MyGrid(Widget):
         if self.tvedit_regim == 'Удаление':
             self.ids.btn_tvedit_plus.disabled = not self.tag.nodes[self.tvedit_current_id].is_leaf
         self.ids.tag_path.text = '\\'.join(self.tag.parent_list(self.tvedit_current_id))
-
-
-
-
-
-        #self.ids.mention.data =
+        if self.conspect_tags.get(self.tvedit_current_id, None):
+            self.ids.mention.data = list([
+                {'text': self.conspect_tags[self.tvedit_current_id][x], 'ext_id': int(x.split('_')[1])}
+                for x in self.conspect_tags[self.tvedit_current_id]])
+        else:
+            self.ids.mention.data = []
 
     def tvedit_text_click(self):
         if self.tvedit_regim == 'Добавление':
@@ -384,6 +384,7 @@ class MyGrid(Widget):
             else:
                 self.conspect_ids[conspect['symbol_number']] = {
                     conspect['user_id'] + '_' + str(conspect['tag_id']): conspect['content']}
+                self.conspect2icon[conspect['symbol_number']] = '+'
             if self.conspect_tags.get(conspect['tag_id']):
                 self.conspect_tags[conspect['tag_id']][
                     conspect['user_id'] + '_' + str(conspect['symbol_number'])] = conspect['content']
