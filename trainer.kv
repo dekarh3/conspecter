@@ -136,10 +136,10 @@
                         text: "Файл стенограммы"
                         on_text: root.spn_lecture_click(lecture.text)
                 RecycleView:
-                    id: mention
+                    id: h_mention
                     size_hint_y: None
                     height: dp(40)
-                    viewclass: 'MyButton'
+                    viewclass: 'HButton'
                     data: [{'text':'один', 'ext_id': 1},{'text': 'два', 'ext_id': 2}]
                     RecycleBoxLayout:
                         default_size: None, dp(40)
@@ -266,8 +266,8 @@
                 RecycleView:
                     size_hint_y: None
                     height: dp(120)
-                    id: mention
-                    viewclass: 'MyButton'
+                    id: v_mention
+                    viewclass: 'VButton'
                     data: [{'text':'один'},{'text': 'два'},{'text': 'три'},{'text': 'пять'},{'text': 'десять'}]
                     RecycleBoxLayout:
                         default_size: None, dp(40)

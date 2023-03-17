@@ -15,6 +15,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.filechooser import FileChooserListView
 from kivy.uix.button import Button
+from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.popup import Popup
 from kivy.utils import platform
 if platform == 'android':
@@ -40,11 +41,24 @@ class MyTreeViewLabel(TreeViewLabel):
         self.parent.parent.parent.parent.parent.parent.tv_touch(tvl.uid)
 
 
-class MyButton(Button):
+class HButton(ToggleButton):
     ext_id = NumericProperty(0)
 
     def on_release(self):
-        q=0
+        for child in self.parent.children:
+            child.state = 'normal'
+        self.state = 'down'
+
+class VButton(ToggleButton):
+    ext_id = NumericProperty(0)
+
+    def on_release(self):
+        for child in self.parent.children:
+            child.state = 'normal'
+        self.state = 'down'
+        if self.ext_id:
+            my_grid.ids.short_text_from_tag.text = str(self.ext_id)
+
 
 
 class MyTreeView(TreeView):
@@ -181,9 +195,26 @@ class MyGrid(Widget):
         self.timestamps = {}
         self.enterstamps = {}
         self.conspect_ids = {}
-        self.conspect2icon = {}
         self.conspect_tags = {}
-
+        self.conspect2icon = {}
+        for yotube_id in self.yotube_id2name.keys():
+            self.conspect2icon[yotube_id] = {}
+        conspects = connd.execute('SELECT * FROM conspects ORDER BY audio_id, symbol_number;')
+        for conspect in conspects:
+            if self.conspect_ids.get(str(conspect['symbol_number']) + '_' + str(conspect['audio_id'])):
+                self.conspect_ids[str(conspect['symbol_number']) + '_' + str(conspect['audio_id'])][
+                    conspect['user_id'] + '_' + str(conspect['tag_id'])] = conspect['content']
+                self.conspect2icon[conspect['audio_id']][conspect['symbol_number']] = '*'
+            else:
+                self.conspect_ids[str(conspect['symbol_number']) + '_' + str(conspect['audio_id'])] = {
+                    conspect['user_id'] + '_' + str(conspect['tag_id']): conspect['content']}
+                self.conspect2icon[conspect['audio_id']][conspect['symbol_number']] = '+'
+            if self.conspect_tags.get(str(conspect['tag_id']) + '_' + str(conspect['audio_id'])):
+                self.conspect_tags[str(conspect['tag_id']) + '_' + str(conspect['audio_id'])][
+                    conspect['user_id'] + '_' + str(conspect['symbol_number'])] = conspect['content']
+            else:
+                self.conspect_tags[str(conspect['tag_id']) + '_' + str(conspect['audio_id'])] = {
+                    conspect['user_id'] + '_' + str(conspect['symbol_number']): conspect['content']}
 
     def cancel_dialog(self):
         self._popup.dismiss()
@@ -341,12 +372,15 @@ class MyGrid(Widget):
         if self.tvedit_regim == 'Удаление':
             self.ids.btn_tvedit_plus.disabled = not self.tag.nodes[self.tvedit_current_id].is_leaf
         self.ids.tag_path.text = '\\'.join(self.tag.parent_list(self.tvedit_current_id))
-        if self.conspect_tags.get(self.tvedit_current_id, None):
-            self.ids.mention.data = list([
-                {'text': self.conspect_tags[self.tvedit_current_id][x], 'ext_id': int(x.split('_')[1])}
-                for x in self.conspect_tags[self.tvedit_current_id]])
-        else:
-            self.ids.mention.data = []
+        self.ids.v_mention.data = []
+        for youtube_id in self.yotube_id2name.keys():
+            if self.conspect_tags.get(str(self.tvedit_current_id) + '_' + str(youtube_id), None):
+                for data in [{'text': self.conspect_tags[str(self.tvedit_current_id) + '_' + str(youtube_id)][x],
+                     'ext_id': x.split('_')[1] + '_' + str(youtube_id)} for x in self.conspect_tags[
+                        str(self.tvedit_current_id) + '_' + str(youtube_id)]]:
+                    self.ids.v_mention.data.append(data)
+            else:
+                self.ids.v_mention.data = []
 
     def tvedit_text_click(self):
         if self.tvedit_regim == 'Добавление':
@@ -374,24 +408,7 @@ class MyGrid(Widget):
         self.timestamps = {x[1]: x[0] for x in cur.fetchall()}
         for i, enterstamp in enumerate(self.enterstamps):
             text = text[:enterstamp + i] + '\n' + text[enterstamp + i:]
-        conspects = connd.execute(
-            'SELECT * FROM conspects WHERE audio_id = ? ORDER BY symbol_number;', (self.current_youtube_id,))
-        for conspect in conspects:
-            if self.conspect_ids.get(conspect['symbol_number']):
-                self.conspect_ids[conspect['symbol_number']][
-                    conspect['user_id'] + '_' + str(conspect['tag_id'])] = conspect['content']
-                self.conspect2icon[conspect['symbol_number']] = '*'
-            else:
-                self.conspect_ids[conspect['symbol_number']] = {
-                    conspect['user_id'] + '_' + str(conspect['tag_id']): conspect['content']}
-                self.conspect2icon[conspect['symbol_number']] = '+'
-            if self.conspect_tags.get(conspect['tag_id']):
-                self.conspect_tags[conspect['tag_id']][
-                    conspect['user_id'] + '_' + str(conspect['symbol_number'])] = conspect['content']
-            else:
-                self.conspect_tags[conspect['tag_id']] = {
-                    conspect['user_id'] + '_' + str(conspect['symbol_number']): conspect['content']}
-        for i, conspect_symbol in enumerate(self.conspect_ids.keys()):
+        for i, conspect_symbol in enumerate(self.conspect2icon[self.current_youtube_id].keys()):
             text = text[:conspect_symbol + i + 1] + self.conspect2icon[conspect_symbol] + text[conspect_symbol + i + 1:]
         self.ids.transcript_text.text = text
 
@@ -401,7 +418,7 @@ class MyGrid(Widget):
     def transcript_text_click(self):
         text_index = self.ids.transcript_text.cursor_index()
         text_index_delta = len(list([x for x in self.enterstamps.keys() if x <= text_index])) + \
-                           len(list([x for x in self.conspect_ids.keys() if x <= text_index]))
+                           len(list([x for x in self.conspect2icon[self.current_youtube_id].keys() if x <= text_index]))
         text_index_original = text_index - text_index_delta
         if self.current_youtube_id:
             tir_left = max(list([x for x in self.timestamps.keys() if x <= text_index_original]))
@@ -413,7 +430,7 @@ class MyGrid(Widget):
     def transcript_text_double_click(self):
         text_index = self.ids.transcript_text.cursor_index()
         text_index_delta = len(list([x for x in self.enterstamps.keys() if x <= text_index])) + \
-                           len(list([x for x in self.conspect_ids.keys() if x <= text_index]))
+                           len(list([x for x in self.conspect2icon[self.current_youtube_id].keys() if x <= text_index]))
         text_index_original = text_index - text_index_delta
         if self.current_youtube_id:
             if self.enterstamps.get(text_index_original):
@@ -435,8 +452,8 @@ class MyGrid(Widget):
         комбинация symbol_number, audio_id, tag_id, user_id"""
         if self.ids.short_text.text and self.current_youtube_id and self.tvedit_current_id:
             text_index = self.ids.transcript_text.cursor_index()
-            text_index_delta = len(list([x for x in self.enterstamps.keys() if x <= text_index])) + \
-                               len(list([x for x in self.conspect_ids.keys() if x <= text_index]))
+            text_index_delta = len(list([x for x in self.enterstamps.keys() if x <= text_index])) + len(list(
+                [x for x in self.conspect2icon[self.current_youtube_id].keys() if x <= text_index]))
             text_index_original = text_index - text_index_delta
             tir_left = max(list([x for x in self.timestamps.keys() if x <= text_index_original]))
             tir_right = min(list([x for x in self.timestamps.keys() if x > text_index_original]))
@@ -463,23 +480,23 @@ class MyGrid(Widget):
                 None,
                 my_user_id))
             conn.commit()
-            if self.conspect_ids.get(text_index_original):
-                self.conspect_ids[text_index_original][
+            if self.conspect_ids.get(str(text_index_original) + '_' + str(self.current_youtube_id)):
+                self.conspect_ids[str(text_index_original) + '_' + str(self.current_youtube_id)][
                     my_user_id + '_' + str(self.tvedit_current_id)] = self.ids.short_text.text
-                self.conspect2icon[text_index_original] = '*'
+                self.conspect2icon[self.current_youtube_id][text_index_original] = '*'
             else:
-                self.conspect_ids[text_index_original] = {
+                self.conspect_ids[str(text_index_original) + '_' + str(self.current_youtube_id)] = {
                     my_user_id + '_' + str(self.tvedit_current_id): self.ids.short_text.text}
-                self.conspect2icon[text_index_original] = '+'
-            if self.conspect_tags.get(self.tvedit_current_id):
-                self.conspect_tags[self.tvedit_current_id][
+                self.conspect2icon[self.current_youtube_id][text_index_original] = '+'
+            if self.conspect_tags.get(str(self.tvedit_current_id) + '_' + str(self.current_youtube_id)):
+                self.conspect_tags[str(self.tvedit_current_id) + '_' + str(self.current_youtube_id)][
                     my_user_id + '_' + str(text_index_original)] = self.ids.short_text.text
             else:
-                self.conspect_tags[self.tvedit_current_id] = {
+                self.conspect_tags[str(self.tvedit_current_id) + '_' + str(self.current_youtube_id)] = {
                     my_user_id + '_' + str(text_index_original): self.ids.short_text.text}
             text = self.ids.transcript_text.text
-            self.ids.transcript_text.text = text[:text_index] + self.conspect2icon[text_index_original] \
-                                            + text[text_index:]
+            self.ids.transcript_text.text = \
+                text[:text_index] + self.conspect2icon[self.current_youtube_id][text_index_original] + text[text_index:]
 
     def transcript_text_changed(self, *args):
         """ Пока не используем. Посмотрим будут ли глюки со скролбаром """
@@ -491,7 +508,9 @@ class MyGrid(Widget):
 
 class TrainerApp(App): # <- Main Class
     def build(self):
-        return MyGrid()
+        global my_grid
+        my_grid = MyGrid()
+        return my_grid
 
 if __name__ == "__main__":
     if CREATE_DB:                                       # Создание первичной структуры
@@ -602,5 +621,6 @@ if __name__ == "__main__":
     Factory.register('LoadDialog', cls=LoadDialog)
     my_user_id = 'q1q1'
     my_user_name = 'Денис Алексеев'
+    my_grid = 0
     TrainerApp().run()
 
