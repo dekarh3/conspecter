@@ -42,23 +42,26 @@ class MyTreeViewLabel(TreeViewLabel):
 
 
 class HButton(ToggleButton):
-    ext_id = NumericProperty(0)
-
-    def on_release(self):
-        for child in self.parent.children:
-            child.state = 'normal'
-        self.state = 'down'
-
-class VButton(ToggleButton):
-    ext_id = NumericProperty(0)
+    ext_id = StringProperty('')
 
     def on_release(self):
         for child in self.parent.children:
             child.state = 'normal'
         self.state = 'down'
         if self.ext_id:
-            my_grid.ids.short_text_from_tag.text = str(self.ext_id)
+            my_grid.ids.short_text.text = \
+                my_grid.conspect_ids['_'.join(self.ext_id.split('_')[:2])]['_'.join(self.ext_id.split('_')[2:])]
 
+class VButton(ToggleButton):
+    ext_id = StringProperty('')
+
+    def on_release(self):
+        for child in self.parent.children:
+            child.state = 'normal'
+        self.state = 'down'
+        if self.ext_id:
+            my_grid.ids.short_text_from_tag.text = \
+                my_grid.conspect_tags['_'.join(self.ext_id.split('_')[:2])]['_'.join(self.ext_id.split('_')[2:])]
 
 
 class MyTreeView(TreeView):
@@ -192,6 +195,8 @@ class MyGrid(Widget):
         self.name2yotube_id = {self.yotube_id2name[x]: x for x in self.yotube_id2name}
         self.ids.lecture.values = self.name2yotube_id.keys()
         self.current_youtube_id = 0
+        tags = connd.execute('SELECT * FROM tags;')
+        self.tag_id2tag_name = {x['id']: x['name'] for x in tags}
         self.timestamps = {}
         self.enterstamps = {}
         self.conspect_ids = {}
@@ -375,10 +380,11 @@ class MyGrid(Widget):
         self.ids.v_mention.data = []
         for youtube_id in self.yotube_id2name.keys():
             if self.conspect_tags.get(str(self.tvedit_current_id) + '_' + str(youtube_id), None):
-                for data in [{'text': self.conspect_tags[str(self.tvedit_current_id) + '_' + str(youtube_id)][x],
-                     'ext_id': x.split('_')[1] + '_' + str(youtube_id)} for x in self.conspect_tags[
-                        str(self.tvedit_current_id) + '_' + str(youtube_id)]]:
-                    self.ids.v_mention.data.append(data)
+                for tag in self.conspect_tags[str(self.tvedit_current_id) + '_' + str(youtube_id)]:
+                    self.ids.v_mention.data.append({
+                        'text': self.yotube_id2name[youtube_id],
+                        'ext_id': str(self.tvedit_current_id) + '_' + str(youtube_id) + '_' + tag})
+                    q=0
             else:
                 self.ids.v_mention.data = []
 
@@ -409,7 +415,8 @@ class MyGrid(Widget):
         for i, enterstamp in enumerate(self.enterstamps):
             text = text[:enterstamp + i] + '\n' + text[enterstamp + i:]
         for i, conspect_symbol in enumerate(self.conspect2icon[self.current_youtube_id].keys()):
-            text = text[:conspect_symbol + i + 1] + self.conspect2icon[conspect_symbol] + text[conspect_symbol + i + 1:]
+            text = text[:conspect_symbol + i + 1] + self.conspect2icon[self.current_youtube_id][conspect_symbol] \
+                   + text[conspect_symbol + i + 1:]
         self.ids.transcript_text.text = text
 
     def btn_conspect_click(self, value):
@@ -426,6 +433,16 @@ class MyGrid(Widget):
             self.ids.file_id_time.text = '{:.2f}'.format(
                 self.timestamps[tir_left] + (text_index_original - tir_left)
                 * (self.timestamps[tir_right] - self.timestamps[tir_left])/(tir_right - tir_left))
+        if self.current_youtube_id:
+            if self.conspect_ids.get(str(text_index_original) + '_' + str(self.current_youtube_id)):
+                for tag in self.conspect_ids[str(text_index_original) + '_' + str(self.current_youtube_id)]:
+                    self.ids.h_mention.data.append({
+                        'text': user_id2user_name[tag.split('_')[0]] + ': ' + self.tag_id2tag_name[int(tag.split('_')[1])],
+                        'ext_id': str(text_index_original) + '_' + str(self.current_youtube_id) + '_' + tag})
+            else:
+                self.ids.h_mention.data = []
+        else:
+            self.ids.h_mention.data = []
 
     def transcript_text_double_click(self):
         text_index = self.ids.transcript_text.cursor_index()
@@ -620,7 +637,7 @@ if __name__ == "__main__":
 
     Factory.register('LoadDialog', cls=LoadDialog)
     my_user_id = 'q1q1'
-    my_user_name = 'Денис Алексеев'
+    user_id2user_name = {'q1q1': 'Денис Алексеев'}
     my_grid = 0
     TrainerApp().run()
 
