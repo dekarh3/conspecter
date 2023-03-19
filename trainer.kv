@@ -1,14 +1,6 @@
 #:kivy 1.8.0
 #:import utils kivy.utils
 
-#<MyButton@Button>:
-#    on_press:
-#        app.root.btn_conspect_click(self.uid)
-
-#<MyTreeViewLabel@TreeViewLabel>
-#    on_touch_down:
-#        app.root.tv_touch(self.uid)
-
 <LoadDialog>:
     BoxLayout:
         size: root.size
@@ -135,23 +127,29 @@
                         size_hint_y: None
                         text: "Файл стенограммы"
                         on_text: root.spn_lecture_click(lecture.text)
-                RecycleView:
-                    id: h_mention
+                BoxLayout:
+                    orientation: 'horizontal'
                     size_hint_y: None
                     height: dp(40)
-                    viewclass: 'HButton'
-                    data: [{'text':'один', 'ext_id': '1'},{'text': 'два', 'ext_id': '2'}]
-                    RecycleBoxLayout:
-                        default_size: None, dp(40)
-                        default_size_hint: 1, None
+                    Label:
+                        id: file_id_time
+                        text: ''
+                        height: dp(20)
+                        width: dp(47)
                         size_hint_y: None
-                        height: self.minimum_height
-                        orientation: 'horizontal'
-                Label:
-                    id: file_id_time
-                    text: ''
-                    height: dp(20)
-                    size_hint_y: None
+                        size_hint_x: None
+                    RecycleView:
+                        id: h_mention
+                        size_hint_y: None
+                        height: dp(40)
+                        viewclass: 'HButton'
+                        data: []
+                        RecycleBoxLayout:
+                            default_size: None, dp(40)
+                            default_size_hint: 1, None
+                            size_hint_y: None
+                            height: self.minimum_height
+                            orientation: 'horizontal'
                 ScrollView:
                     id: scroller
                     do_scroll: False, True
@@ -181,21 +179,27 @@
                         width: dp(40)
                         on_release: app.root.btn_plus_conspect_click()
                     Button:
+                        id: btn_prev_conspect
                         text: '<'
                         font_size: dp(40)
                         height: dp(40)
                         width: dp(40)
+                        on_release: app.root.btn_prev_conspect_click()
                     Button:
+                        id: btn_next_conspect
                         text: '>'
                         font_size: dp(40)
                         height: dp(40)
                         width: dp(40)
+                        on_release: app.root.btn_next_conspect_click()
                     Button:
+                        id: btn_minus_conspect
                         text: '-'
                         height: dp(40)
                         font_size: dp(40)
                         height: dp(40)
                         width: dp(40)
+                        on_release: app.root.btn_minus_conspect_click()
                 TextInput:
                     id: short_text
                     text: ''
@@ -268,7 +272,7 @@
                     height: dp(120)
                     id: v_mention
                     viewclass: 'VButton'
-                    data: [{'text':'один'},{'text': 'два'},{'text': 'три'},{'text': 'пять'},{'text': 'десять'}]
+                    data: []
                     RecycleBoxLayout:
                         default_size: None, dp(40)
                         default_size_hint: 1, None
@@ -281,6 +285,8 @@
                     multiline: True
                     height: dp(120)
                     size_hint_y: None
+                    text_size: self.width, None
+                    size_hint: 1, None
             BoxLayout:
                 orientation: 'vertical'
                 canvas:
