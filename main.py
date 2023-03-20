@@ -538,6 +538,9 @@ class MyGrid(Widget):
                                              x <= text_index]))
                 text_index_textinput = text_index + text_index_delta
                 self.ids.transcript_text.cursor = self.ids.transcript_text.get_cursor_from_index(text_index_textinput)
+                self.ids.scroll_transcript_text.scroll_y = \
+                    (self.ids.transcript_text.cursor_pos[1] + 0.75 * self.ids.scroll_transcript_text.height) \
+                    / self.ids.transcript_text.height
 
     def btn_next_conspect_click(self):
         """ Перемещение на следующий конспект"""
@@ -545,7 +548,7 @@ class MyGrid(Widget):
 
     def transcript_text_changed(self, *args):
         """ Пока не используем. Посмотрим будут ли глюки со скролбаром """
-        width_calc = self.grid.ids.scroller.width
+        width_calc = self.grid.ids.scroll_transcript_text.width
         for line_label in self.grid.ids.ti._lines_labels:
             width_calc = max(width_calc, line_label.width + 20)   # add 20 to avoid automatically creating a new line
         self.ids.transcript_text.width = width_calc

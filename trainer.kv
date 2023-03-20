@@ -151,15 +151,15 @@
                             height: self.minimum_height
                             orientation: 'horizontal'
                 ScrollView:
-                    id: scroller
+                    id: scroll_transcript_text
                     do_scroll: False, True
                     bar_width: dp(10)
                     scroll_type: ['bars','content']
                     TextInput:
                         id: transcript_text
                         size_hint: (None, None)
-                        height: max(self.minimum_height, scroller.height)
-                        width: scroller.width
+                        height: max(self.minimum_height, scroll_transcript_text.height)
+                        width: scroll_transcript_text.width
                         text: ''
                         multiline: True
                         hint_text: '^ Выберите файл лекции ^'
@@ -258,6 +258,7 @@
                         width: dp(40)
                         on_release: app.root.btn_tvedit_plus_click()
                 ScrollView:
+                    id: scroll_tree
                     do_scroll: False, True
                     bar_width: dp(10)
                     scroll_type: ['bars','content']
