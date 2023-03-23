@@ -449,6 +449,7 @@ class MyGrid(Widget):
             if len(self.ids.h_mention.data):
                 self.ids.short_text.text = self.conspect_ids['_'.join(self.ids.h_mention.data[0]['ext_id'].split('_')[:2])]\
                     ['_'.join(self.ids.h_mention.data[0]['ext_id'].split('_')[2:])]
+            self.ids.transcript_text.focus = True
 
     def transcript_text_double_click(self):
         """ Добавление перевода строки по двойному клику """
@@ -530,9 +531,11 @@ class MyGrid(Widget):
 
     def btn_prev_conspect_click(self):
         """ Перемещение на предыдущий конспект"""
-        if len(self.conspect_ids):
+        if len(self.conspect2icon.get(self.current_youtube_id, [])) and self.ids.transcript_text.text:
             sn_prev = int(list(self.conspect_ids.keys())[0].split('_')[0])
-            text_index = sn_prev
+        elif len(self.conspect2icon.get(self.current_youtube_id, [])) > 1 and self.ids.transcript_text.text:
+            sn_all =[int(x.split('_')[0]) for x in self.conspect_ids.keys()]
+            sn_prev = min(sn_all)
             if self.ids.transcript_text.cursor_index() < len(self.ids.transcript_text.text) - 10:
                 delta = len(list([x for x in self.enterstamps.keys() if x <= self.ids.transcript_text.cursor_index()]))\
                         + len(list([x for x in self.conspect2icon[self.current_youtube_id].keys()
@@ -541,19 +544,24 @@ class MyGrid(Widget):
                     for sn in self.conspect_ids.keys():
                         if self.ids.transcript_text.cursor_index() - delta > int(sn.split('_')[0]) >= sn_prev:
                             sn_prev = int(sn.split('_')[0])
-                delta = len(list([x for x in self.enterstamps.keys() if x <= sn_prev])) + \
-                        len(list([x for x in self.conspect2icon[self.current_youtube_id].keys() if x <= sn_prev]))
-                text_index_textinput = sn_prev + delta
-                self.ids.transcript_text.cursor = self.ids.transcript_text.get_cursor_from_index(text_index_textinput)
-                self.ids.scroll_transcript_text.scroll_y = \
-                    (self.ids.transcript_text.cursor_pos[1]+ 0.25 * self.ids.scroll_transcript_text.height) \
-                    / self.ids.transcript_text.height
+        else:
+            return
+        delta = len(list([x for x in self.enterstamps.keys() if x <= sn_prev])) + \
+                len(list([x for x in self.conspect2icon[self.current_youtube_id].keys() if x <= sn_prev]))
+        text_index_textinput = sn_prev + delta
+        self.ids.transcript_text.cursor = self.ids.transcript_text.get_cursor_from_index(text_index_textinput)
+        self.ids.scroll_transcript_text.scroll_y = \
+            (self.ids.transcript_text.cursor_pos[1]+ 0.25 * self.ids.scroll_transcript_text.height) \
+            / self.ids.transcript_text.height
         self.transcript_text_click()
 
     def btn_next_conspect_click(self):
         """ Перемещение на следующий конспект"""
-        if len(self.conspect_ids):
+        if len(self.conspect2icon.get(self.current_youtube_id, [])) == 1 and self.ids.transcript_text.text:
             sn_prev = int(list(self.conspect_ids.keys())[0].split('_')[0])
+        elif len(self.conspect2icon.get(self.current_youtube_id, [])) > 1 and self.ids.transcript_text.text:
+            sn_all =[int(x.split('_')[0]) for x in self.conspect_ids.keys()]
+            sn_prev = max(sn_all)
             if self.ids.transcript_text.cursor_index() < len(self.ids.transcript_text.text) - 10:
                 delta = len(list([x for x in self.enterstamps.keys() if x <= self.ids.transcript_text.cursor_index()]))\
                         + len(list([x for x in self.conspect2icon[self.current_youtube_id].keys()
@@ -562,13 +570,15 @@ class MyGrid(Widget):
                     for sn in self.conspect_ids.keys():
                         if self.ids.transcript_text.cursor_index() - delta < int(sn.split('_')[0]) < sn_prev:
                             sn_prev = int(sn.split('_')[0])
-                delta = len(list([x for x in self.enterstamps.keys() if x <= sn_prev])) + \
-                        len(list([x for x in self.conspect2icon[self.current_youtube_id].keys() if x <= sn_prev]))
-                text_index_textinput = sn_prev + delta
-                self.ids.transcript_text.cursor = self.ids.transcript_text.get_cursor_from_index(text_index_textinput)
-                self.ids.scroll_transcript_text.scroll_y = \
-                    (self.ids.transcript_text.cursor_pos[1]+ 0.25 * self.ids.scroll_transcript_text.height) \
-                    / self.ids.transcript_text.height
+        else:
+            return
+        delta = len(list([x for x in self.enterstamps.keys() if x <= sn_prev])) + \
+                len(list([x for x in self.conspect2icon[self.current_youtube_id].keys() if x <= sn_prev]))
+        text_index_textinput = sn_prev + delta
+        self.ids.transcript_text.cursor = self.ids.transcript_text.get_cursor_from_index(text_index_textinput)
+        self.ids.scroll_transcript_text.scroll_y = \
+            (self.ids.transcript_text.cursor_pos[1]+ 0.25 * self.ids.scroll_transcript_text.height) \
+            / self.ids.transcript_text.height
         self.transcript_text_click()
 
     def transcript_text_changed(self, *args):
